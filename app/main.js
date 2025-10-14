@@ -8,7 +8,7 @@ const server = net.createServer((connection) => {
   connection.on("data",(data) => {
      const command=data.toString().split('\r\n');
      if(command[2].toLowerCase()=="ping")
-        connection.write(`$PONG\r\n`);
+        connection.write(`+PONG\r\n`);
     else if(command[2].toLowerCase()=='echo')
         connection.write(command[3]+'\r\n'+command[4]+'\r\n');
   });
