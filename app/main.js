@@ -1,6 +1,9 @@
 const net = require("net");
 
 // You can use print statements as follows for debugging, they'll be visible when running tests.
+const s='kunal';
+let k=s.length;
+console.log(k);
 console.log("Logs from your program will appear here!");
 
 const server = net.createServer((connection) => {
@@ -16,8 +19,9 @@ const server = net.createServer((connection) => {
       redis_key_value_pair.set(command[4], command[6]);
       connection.write(`+OK\r\n`);
     } else if (command[2].toLowerCase() == "get") {
-      let value = redis_key_value_pair[command[4]];
-      connection.write(`$` + value.length() + `\r\n` + value + `\r\n`);
+      let value = redis_key_value_pair.get(command[4]);
+      console.log(value);
+      connection.write(`$` + value.length + `\r\n` + value + `\r\n`);
     }
   });
 });
