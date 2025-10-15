@@ -13,7 +13,7 @@ function lrange_handler(command,redis_list,connection) {
   }
   const list = redis_list[key];
 
-  if (start >= list.length || start > stop) {
+  if (start >= list.length || start > stop || stop < 0 || list.length == 0 || start < 0) {
     connection.write("*0\r\n");
     return;
   }
