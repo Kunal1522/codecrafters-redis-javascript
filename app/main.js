@@ -61,9 +61,9 @@ const server = net.createServer((connection) => {
              const key=command[4];
       const top_most=redis_list[key].shift();
         if(top_most===undefined)
-          console.write('$-1\r\n');
+          connection.write('$-1\r\n');
         else
-          console.write(`$${top_most.length}\r\n${top_most}\r\n`);
+          connection.write(`$${top_most.length}\r\n${top_most}\r\n`);
       }
   });
 });
