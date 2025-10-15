@@ -1,5 +1,6 @@
 import net from "net";
 import { expiry_checker } from "./expiry_check.js";
+import { lrange_handler } from "./handle_lrange.js";
 // You can use print statements as follows for debugging, they'll be visible when running tests.
 const s = "kunal";
 let k = s.length;
@@ -29,14 +30,16 @@ const server = net.createServer((connection) => {
       if (value == "ille_pille_kille") connection.write(`$-1\r\n`);
       else connection.write(`$` + value.length + `\r\n` + value + `\r\n`);
     } else if (intr == "rpush") {
-        const key =  command[4];
-        if (!redis_list[key]) {
-            redis_list[key] = [];
-        }
-        for (let i = 6; i < command.length; i += 2) {
-            redis_list[key].push(command[i]);
-        }
-        connection.write(':' + redis_list[key].length + '\r\n');
+      const key = command[4];
+      if (!redis_list[key]) {
+        redis_list[key] = [];
+      }
+      for (let i = 6; i < command.length; i += 2) {
+        redis_list[key].push(command[i]);
+      }
+      connection.write(":" + redis_list[key].length + "\r\n");
+    } else if (intr == "lrange") {
+        lrange_handler(command,redis_list,connection);
     }
   });
 });
