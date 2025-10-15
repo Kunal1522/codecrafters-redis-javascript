@@ -52,6 +52,15 @@ const server = net.createServer((connection) => {
       }
       connection.write(":" + redis_list[key].length + "\r\n");
       }
+      else if(intr=='llen')
+      {
+        const key=command[4];
+            if (!redis_list[key]) {
+        redis_list[key] = [];
+      }
+       connection.write(":" + redis_list[key].length + "\r\n")
+
+      }
   });
 });
 
