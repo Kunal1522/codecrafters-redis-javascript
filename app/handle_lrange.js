@@ -1,7 +1,7 @@
 function lrange_handler(command,redis_list,connection) {
   const key = command[4];
-  const start = Number(command[6]);
-  const stop = Number(command[8]);
+  let start = Number(command[6]);
+  let stop = Number(command[8]);
   if(start<0)
      start=redis_list[key].length+start;
     if(stop<0)
