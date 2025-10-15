@@ -1,11 +1,7 @@
 import net from "net";
 import { expiry_checker } from "./expiry_check.js";
 import { lrange_handler } from "./handle_lrange.js";
-// You can use print statements as follows for debugging, they'll be visible when running tests.
-const s = "kunal";
-let k = s.length;
 
-console.log(k);
 console.log("Logs from your program will appear here!");
 const server = net.createServer((connection) => {
   // Handle connection
@@ -59,7 +55,15 @@ const server = net.createServer((connection) => {
         redis_list[key] = [];
       }
        connection.write(":" + redis_list[key].length + "\r\n")
-
+      }
+      else if(intr=='lpop')
+      {
+             const key=command[4];
+      const top_most=redis_list[key].shift();
+        if(top_most===undefined)
+          console.write('$-1\r\n');
+        else
+          console.write(`$${top_most.length}\r\n${top_most}\r\n`);
       }
   });
 });
