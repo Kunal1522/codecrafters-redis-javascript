@@ -41,6 +41,17 @@ const server = net.createServer((connection) => {
     } else if (intr == "lrange") {
         lrange_handler(command,redis_list,connection);
     }
+    else if( intr == "lpush") 
+      {
+        const key = command[4];
+      if (!redis_list[key]) {
+        redis_list[key] = [];
+      }
+      for (let i = 6; i < command.length; i += 2) {
+        redis_list[key].unshift(command[i]);
+      }
+      connection.write(":" + redis_list[key].length + "\r\n");
+      }
   });
 });
 
