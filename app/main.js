@@ -1,5 +1,5 @@
-const net = require("net");
-
+import net from "net";
+import { expiry_checker } from "./expiry_check.js";
 // You can use print statements as follows for debugging, they'll be visible when running tests.
 const s = "kunal";
 let k = s.length;
@@ -8,37 +8,35 @@ console.log(k);
 console.log("Logs from your program will appear here!");
 const server = net.createServer((connection) => {
   // Handle connection
-
   const redis_key_value_pair = new Map();
+  const redis_list = {};
   connection.on("data", (data) => {
     const command = data.toString().split("\r\n");
+    let intr = command[2].toLowerCase();
     console.log(command);
-    if (command[2].toLowerCase() == "ping") connection.write(`+PONG\r\n`);
-    else if (command[2].toLowerCase() == "echo")
+    if (intr == "ping") connection.write(`+PONG\r\n`);
+    else if (intr == "echo")
       connection.write(command[3] + "\r\n" + command[4] + "\r\n");
-    else if (command[2].toLowerCase() == "set") {
+    else if (intr == "set") {
       redis_key_value_pair.set(command[4], command[6]);
       if (command.length > 8) {
-        if (command[8].toLowerCase() == "px") {
-          const expiry = command[10];
-          console.log(expiry);
-          setTimeout(() => {
-            redis_key_value_pair.set(command[4], `ille_pille_kille`);
-          }, expiry);
-        } else if (command[8].toLowerCase() == "ex") {
-          const expiry = command[10];
-          console.log(expiry);
-          setTimeout(() => {
-            redis_key_value_pair.set(command[4], `ille_pille_kille`);
-          }, expiry * 1000);
-        }
+        expiry_checker(command, redis_key_value_pair);
       }
       connection.write(`+OK\r\n`);
-    } else if (command[2].toLowerCase() == "get") {
+    } else if (intr == "get") {
       let value = redis_key_value_pair.get(command[4]);
       console.log(value);
       if (value == "ille_pille_kille") connection.write(`$-1\r\n`);
       else connection.write(`$` + value.length + `\r\n` + value + `\r\n`);
+    } else if (intr == "rpush") {
+        const key =  command[4];
+        if (!redis_list[key]) {
+            redis_list[key] = [];
+        }
+        for (let i = 6; i < command.length; i += 2) {
+            redis_list[key].push(command[i]);
+        }
+        connection.write(':' + redis_list[key].length + '\r\n');
     }
   });
 });
