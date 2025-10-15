@@ -31,6 +31,7 @@ function lrange_handler(command, redis_list, connection) {
     const val = list[i];
     connection.write(`$${val.length}\r\n${val}\r\n`);
   }
+
 }
 
 export { lrange_handler };

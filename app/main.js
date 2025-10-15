@@ -59,11 +59,16 @@ const server = net.createServer((connection) => {
       else if(intr=='lpop')
       {
              const key=command[4];
-      const top_most=redis_list[key].shift();
-        if(top_most===undefined)
-          connection.write('$-1\r\n');
-        else
-          connection.write(`$${top_most.length}\r\n${top_most}\r\n`);
+             const element_to_pop=command[6];
+             for(let i=0;i<element_to_pop;i++){
+               const top_most=redis_list[key].shift();
+               if(top_most===undefined)
+               {
+                 connection.write('$-1\r\n');
+               }
+               else
+                 connection.write(`$${top_most.length}\r\n${top_most}\r\n`);
+             }
       }
   });
 });
