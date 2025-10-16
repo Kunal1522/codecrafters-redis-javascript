@@ -65,7 +65,7 @@ const server = net.createServer((connection) => {
       connection.write('*'+elements_remove.length+'\r\n');
        for(let i=0;i<elements_remove.length;i++)
        {
-          connection.write('$'+elements_remove[i].length+'\r\n'+elements_remove[i]);
+          connection.write('$'+elements_remove[i].length+'\r\n'+elements_remove[i]+'\r\n');
        }
     }
   });
