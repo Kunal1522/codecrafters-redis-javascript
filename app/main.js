@@ -91,7 +91,7 @@ const server = net.createServer((connection) => {
         }
       } else {
          let flag = true;
-        const lastElement = redis_stream.slice(-1);
+        const lastElement = redis_stream[streamKey].slice(-1);
         const [lasttime, lastsequence] = lastElement.id.split("-");
         if (millisecondsTime < lasttime) flag = false;
         else if (millisecondsTime == lasttime && sequenceNumber < lastsequence)
