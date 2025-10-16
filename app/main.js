@@ -53,20 +53,33 @@ const server = net.createServer((connection) => {
       connection.write(":" + redis_list[key].length + "\r\n");
     } else if (intr == "lpop") {
       const key = command[4];
-      const element_to_pop = command[6];
-      let elements_remove = [];
-      for (let i = 0; i < element_to_pop; i++) {
-        const top_most = redis_list[key].shift();
-        if (top_most == undefined) {
-          break;
+      if (command.length > 6) {
+        const element_to_pop = command[6];
+        let elements_remove = [];
+        for (let i = 0; i < element_to_pop; i++) {
+          const top_most = redis_list[key].shift();
+          if (top_most == undefined) {
+            break;
+          }
+          elements_remove.push(top_most);
         }
-        elements_remove.push(top_most);
+        connection.write("*" + elements_remove.length + "\r\n");
+        for (let i = 0; i < elements_remove.length; i++) {
+          connection.write(
+            "$" +
+              elements_remove[i].length +
+              "\r\n" +
+              elements_remove[i] +
+              "\r\n"
+          );
+        }
+      } else {
+        if (redis_list[key].length == 0) connection.write(`$-1\r\n`);
+        else {
+          const top_most = redis_list[key].shift();
+          connection.write("$" + top_most.length + "\r\n" + top_most + "\r\n");
+        }
       }
-      connection.write('*'+elements_remove.length+'\r\n');
-       for(let i=0;i<elements_remove.length;i++)
-       {
-          connection.write('$'+elements_remove[i].length+'\r\n'+elements_remove[i]+'\r\n');
-       }
     }
   });
 });
