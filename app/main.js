@@ -35,11 +35,9 @@ const server = net.createServer((connection) => {
       }
       connection.write(":" + redis_list[key].length + "\r\n");
     } else if (intr == "lrange") {
-        lrange_handler(command,redis_list,connection);
-    }
-    else if( intr == "lpush") 
-      {
-        const key = command[4];
+      lrange_handler(command, redis_list, connection);
+    } else if (intr == "lpush") {
+      const key = command[4];
       if (!redis_list[key]) {
         redis_list[key] = [];
       }
@@ -47,29 +45,29 @@ const server = net.createServer((connection) => {
         redis_list[key].unshift(command[i]);
       }
       connection.write(":" + redis_list[key].length + "\r\n");
-      }
-      else if(intr=='llen')
-      {
-        const key=command[4];
-            if (!redis_list[key]) {
+    } else if (intr == "llen") {
+      const key = command[4];
+      if (!redis_list[key]) {
         redis_list[key] = [];
       }
-       connection.write(":" + redis_list[key].length + "\r\n")
+      connection.write(":" + redis_list[key].length + "\r\n");
+    } else if (intr == "lpop") {
+      const key = command[4];
+      const element_to_pop = command[6];
+      let elements_remove = [];
+      for (let i = 0; i < element_to_pop; i++) {
+        const top_most = redis_list[key].shift();
+        if (top_most == undefined) {
+          break;
+        }
+        elements_remove.push(top_most);
       }
-      else if(intr=='lpop')
-      {
-             const key=command[4];
-             const element_to_pop=command[6];
-             for(let i=0;i<element_to_pop;i++){
-               const top_most=redis_list[key].shift();
-               if(top_most===undefined)
-               {
-                 connection.write('$-1\r\n');
-               }
-               else
-                 connection.write(`$${top_most.length}\r\n${top_most}\r\n`);
-             }
-      }
+      connection.write('*'+elements_remove.length+'\r\n');
+       for(let i=0;i<elements_remove.length;i++)
+       {
+          connection.write('$'+elements_remove[i].length+'\r\n'+elements_remove[i]);
+       }
+    }
   });
 });
 
