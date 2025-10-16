@@ -71,13 +71,12 @@ const server = net.createServer((connection) => {
       }
     } else if (intr == "xadd") {
       const streamKey = command[4];
-      const entryId = command[6];
-
+      const entryId = command[6];   
       if (!redis_stream[streamKey]) {
         redis_stream[streamKey] = [];
       }
-     
-      const [millisecondsTime, sequenceNumber] = entryId.split("-");
+      console.log("entryId:", entryId);
+      const [millisecondsTime, sequenceNumber] = entryId.split('-');
       if (millisecondsTime == 0 && sequenceNumber == 0) {
         connection.write(
           "-ERR The ID specified in XADD must be greater than 0-0\r\n"
@@ -92,16 +91,16 @@ const server = net.createServer((connection) => {
       } else {
          let flag = true;
         const lastElement = redis_stream[streamKey].slice(-1);
-        const [lasttime, lastsequence] = lastElement.id.split("-");
+        const [lasttime, lastsequence] = lastElement[0].id.split("-");
         if (millisecondsTime < lasttime) flag = false;
-        else if (millisecondsTime == lasttime && sequenceNumber < lastsequence)
+        else if (millisecondsTime == lasttime && sequenceNumber <= lastsequence)
           flag = false;
         if(!flag)
         {
           connection.write('-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n');
+          return;
         }
       }
-
       const entry = { id: entryId };
       for (let i = 8; i < command.length; i += 4) {
         const fieldName = command[i];
