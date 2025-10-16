@@ -63,5 +63,62 @@ function lpop_handler(command, redis_list, connection) {
         }
       }
 }
+function blop_handler(command,redis_list,blop_connections)
+{
+   const key = command[4];
+        console.log(key);
+         if (!blop_connections[key]) {
+        blop_connections[key] = [];
+      }
+       blop_connections[key].push(connection); 
+         console.log("time of blop",performance.now());
+      const timeout = command.length > 6 ? Number(command[6]) * 1000 : null;
+       console.log(connection);
+      if (timeout != 0) {
+        setTimeout(() => {    
+         const  top_connection=blop_connections[key].shift(); 
+          const top_most =
+            redis_list[key] && redis_list[key].length > 0
+              ? redis_list[key].shift():null;
+         if (top_most == null) top_connection.write(`*-1\r\n`);
+        else
+         {
+          top_connection.write(`*2\r\n$${key.length}\r\n${key}\r\n$${top_most.length}\r\n${top_most}\r\n`);
+         }        
+        }, timeout);
+      }
+}
 
-export { lrange_handler, lpop_handler };
+function rpush_handler(command,redis_list,blop_connections,connection)
+{
+      const key = command[4];
+      if (!redis_list[key]) {
+        redis_list[key] = [];
+      }
+      for (let i = 6; i < command.length; i += 2) {
+        redis_list[key].push(command[i]);
+      }
+      connection.write(":" + redis_list[key].length + "\r\n");
+      if (!blop_connections[key]) {
+        blop_connections[key] = [];
+      }
+      console.log("time of rpush", performance.now());
+      console.log("blopconnectionlenght", blop_connections[key].length);
+      if (blop_connections[key].length > 0) {
+        const top_connection = blop_connections[key].shift();
+        const top_most =
+          redis_list[key] && redis_list[key].length > 0
+            ? redis_list[key].shift()
+            : null;
+        console.log("TOPMOSTELEMENT", top_most);
+        console.log("top connection", top_connection);
+        if (top_most == null) {
+          top_connection.write(`*-1\r\n`);
+        } else {
+          top_connection.write(
+            `*2\r\n$${key.length}\r\n${key}\r\n$${top_most.length}\r\n${top_most}\r\n`
+          );
+        }
+      }
+}
+export { lrange_handler, lpop_handler,blop_handler,rpush_handler};
