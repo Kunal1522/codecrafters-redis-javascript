@@ -60,32 +60,56 @@ const server = net.createServer((connection) => {
       blop_handler(command, redis_list, blop_connections, connection);
     } else if (intr == "type") {
       const key = command[4];
-      
+
       // Check if key exists in streams
       if (redis_stream[key]) {
         connection.write("+stream\r\n");
-      }
-      else if (redis_key_value_pair.has(key)) {
+      } else if (redis_key_value_pair.has(key)) {
         connection.write("+string\r\n");
-      }
-      else {
+      } else {
         connection.write("+none\r\n");
       }
     } else if (intr == "xadd") {
       const streamKey = command[4];
-      const entryId = command[6]; 
+      const entryId = command[6];
+
       if (!redis_stream[streamKey]) {
         redis_stream[streamKey] = [];
       }
-      const entry = { id: entryId };  
-      // Parse key-value pairs (starting from index 8, every 2 elements)
+     
+      const [millisecondsTime, sequenceNumber] = entryId.split("-");
+      if (millisecondsTime == 0 && sequenceNumber == 0) {
+        connection.write(
+          "-ERR The ID specified in XADD must be greater than 0-0\r\n"
+        );
+      }
+      if (redis_stream[streamKey].length == 0) {
+        if (millisecondsTime == 0 && sequenceNumber == 0) {
+          connection.write(
+            "-ERR The ID specified in XADD must be greater than 0-0\r\n"
+          );
+        }
+      } else {
+         let flag = true;
+        const lastElement = redis_stream.slice(-1);
+        const [lasttime, lastsequence] = lastElement.id.split("-");
+        if (millisecondsTime < lasttime) flag = false;
+        else if (millisecondsTime == lasttime && sequenceNumber < lastsequence)
+          flag = false;
+        if(!flag)
+        {
+          connection.write('-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n');
+        }
+      }
+
+      const entry = { id: entryId };
       for (let i = 8; i < command.length; i += 4) {
         const fieldName = command[i];
         const fieldValue = command[i + 2];
         if (fieldName && fieldValue) {
           entry[fieldName] = fieldValue;
         }
-      } 
+      }
       redis_stream[streamKey].push(entry);
       connection.write(`$${entryId.length}\r\n${entryId}\r\n`);
     }
