@@ -8,9 +8,13 @@ import {
 } from "./command_handlers.js";
 
 console.log("Logs from your program will appear here!");
+
+// Move these OUTSIDE the connection callback so they're shared across all connections
 const redis_key_value_pair = new Map();
 const redis_list = {};
 const blop_connections = {};
+const redis_stream = {};
+
 const server = net.createServer((connection) => {
   // Handle connection
   connection.on("data", (data) => {
@@ -53,11 +57,37 @@ const server = net.createServer((connection) => {
     } else if (intr == "lpop") {
       lpop_handler(command, redis_list, connection);
     } else if (intr == "blpop") {
-      blop_handler(command, redis_list, blop_connections,connection);
+      blop_handler(command, redis_list, blop_connections, connection);
     } else if (intr == "type") {
-      const value = redis_key_value_pair.get(command[4]);
-      if (value == undefined) connection.write("+none\r\n");
-      else connection.write(`+${typeof(value)}\r\n`);
+      const key = command[4];
+      
+      // Check if key exists in streams
+      if (redis_stream[key]) {
+        connection.write("+stream\r\n");
+      }
+      else if (redis_key_value_pair.has(key)) {
+        connection.write("+string\r\n");
+      }
+      else {
+        connection.write("+none\r\n");
+      }
+    } else if (intr == "xadd") {
+      const streamKey = command[4];
+      const entryId = command[6]; 
+      if (!redis_stream[streamKey]) {
+        redis_stream[streamKey] = [];
+      }
+      const entry = { id: entryId };  
+      // Parse key-value pairs (starting from index 8, every 2 elements)
+      for (let i = 8; i < command.length; i += 4) {
+        const fieldName = command[i];
+        const fieldValue = command[i + 2];
+        if (fieldName && fieldValue) {
+          entry[fieldName] = fieldValue;
+        }
+      } 
+      redis_stream[streamKey].push(entry);
+      connection.write(`$${entryId.length}\r\n${entryId}\r\n`);
     }
   });
 });
