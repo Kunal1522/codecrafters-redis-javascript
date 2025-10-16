@@ -53,7 +53,7 @@ const server = net.createServer((connection) => {
     } else if (intr == "lpop") {
       lpop_handler(command, redis_list, connection);
     } else if (intr == "blpop") {
-      blop_handler(command, redis_list, blop_connections);
+      blop_handler(command, redis_list, blop_connections,connection);
     } else if (intr == "type") {
       const value = redis_key_value_pair.get(command[4]);
       if (value == undefined) connection.write("+none\r\n");

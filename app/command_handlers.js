@@ -63,7 +63,7 @@ function lpop_handler(command, redis_list, connection) {
         }
       }
 }
-function blop_handler(command,redis_list,blop_connections)
+function blop_handler(command,redis_list,blop_connections,connection)
 {
    const key = command[4];
         console.log(key);
