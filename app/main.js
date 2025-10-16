@@ -49,8 +49,11 @@ const server = net.createServer((connection) => {
             : null;
             console.log("TOPMOSTELEMENT",top_most);
             console.log("top connection",top_connection);
-        if (top_most == null) top_connection.write(`*-1\r\n`);
-        else
+           if (top_most == null) 
+          {
+            top_connection.write(`*-1\r\n`);
+          }
+           else
          {
           top_connection.write(`*2\r\n$${key.length}\r\n${key}\r\n$${top_most.length}\r\n${top_most}\r\n`);
          }
@@ -85,16 +88,19 @@ const server = net.createServer((connection) => {
          console.log("time of blop",performance.now());
       const timeout = command.length > 6 ? Number(command[6]) * 1000 : null;
        console.log(connection);
-      // if (timeout != 0) {
-      //   setTimeout(() => {     
-      //     const top_most =
-      //       redis_list[key] && redis_list[key].length > 0
-      //         ? redis_list[key].shift():null;
-      //     if (top_most == null) connection.write(`*-1\r\n`);
-      //     else
-      //       connection.write("$" + top_most.length + "\r\n" + top_most + "\r\n");         
-      //   }, timeout);
-      // }
+      if (timeout != 0) {
+        setTimeout(() => {    
+         const  top_connection=blop_connections[key].shift(); 
+          const top_most =
+            redis_list[key] && redis_list[key].length > 0
+              ? redis_list[key].shift():null;
+         if (top_most == null) top_connection.write(`*-1\r\n`);
+        else
+         {
+          top_connection.write(`*2\r\n$${key.length}\r\n${key}\r\n$${top_most.length}\r\n${top_most}\r\n`);
+         }        
+        }, timeout);
+      }
     }
   });
 });
