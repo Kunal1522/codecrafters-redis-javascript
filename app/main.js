@@ -56,8 +56,8 @@ const server = net.createServer((connection) => {
       blop_handler(command, redis_list, blop_connections);
     } else if (intr == "type") {
       const value = redis_key_value_pair.get(command[4]);
-      if (value == undefined) connection.write("none");
-      else connection.write(typeof value);
+      if (value == undefined) connection.write("+none\r\n");
+      else connection.write(`+${typeof(value)}\r\n`);
     }
   });
 });
