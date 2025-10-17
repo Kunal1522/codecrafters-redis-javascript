@@ -13,25 +13,5 @@ function expiry_checker(command,rkvp) {
   }
 }
 
-function generateStreamId(rawId) {
-  if (!rawId) return null;
-  if (rawId.includes("-") && !rawId.endsWith("-*")) {
-    return rawId;
-  }
-  let timestamp, sequence;
-  if (rawId.endsWith("-*")) {
-    timestamp = rawId.split("-")[0];
-  } else if (rawId === "*") {
-    timestamp = Date.now();
-  }
-  const prevSeq = streamSequenceMap.get(timestamp) ?? -1;
 
-  sequence = prevSeq + 1;
-  if (timestamp == 0 && sequence == 0) sequence++;
-  streamSequenceMap.set(timestamp, sequence);
-
-  const fullId = `${timestamp}-${sequence}`;
-  return fullId;
-}
-
-export {expiry_checker,generateStreamId};
+export {expiry_checker};

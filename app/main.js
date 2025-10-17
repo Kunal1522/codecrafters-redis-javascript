@@ -1,5 +1,5 @@
 import net from "net";
-import { expiry_checker, generateStreamId } from "./utils/utils.js";
+import { expiry_checker } from "./utils/utils.js";
 
 import {
   lrange_handler,
@@ -15,6 +15,26 @@ const redis_key_value_pair = new Map();
 const redis_list = {};
 const blop_connections = {};
 const redis_stream = {};
+function generateStreamId(rawId) {
+  if (!rawId) return null;
+  if (rawId.includes("-") && !rawId.endsWith("-*")) {
+    return rawId;
+  }
+  let timestamp, sequence;
+  if (rawId.endsWith("-*")) {
+    timestamp = rawId.split("-")[0];
+  } else if (rawId === "*") {
+    timestamp = Date.now();
+  }
+  const prevSeq = streamSequenceMap.get(timestamp) ?? -1;
+
+  sequence = prevSeq + 1;
+  if (timestamp == 0 && sequence == 0) sequence++;
+  streamSequenceMap.set(timestamp, sequence);
+
+  const fullId = `${timestamp}-${sequence}`;
+  return fullId;
+}
 
 const server = net.createServer((connection) => {
   // Handle connection
