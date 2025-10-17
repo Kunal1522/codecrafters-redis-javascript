@@ -1,5 +1,6 @@
 import net from "net";
-import { expiry_checker } from "./expiry_check.js";
+import { expiry_checker, generateStreamId } from "./utils/utils.js";
+
 import {
   lrange_handler,
   lpop_handler,
@@ -7,27 +8,6 @@ import {
   rpush_handler,
 } from "./command_handlers.js";
 const streamSequenceMap = new Map();
-function generateStreamId(rawId) {
-  if (!rawId) return null;
-  if (rawId.includes("-") && !rawId.endsWith("-*")) {
-    return rawId;
-  }
-  let timestamp, sequence;
-  if (rawId.endsWith("-*")) {
-    timestamp = rawId.split("-")[0];
-  } else if (rawId === "*") {
-    timestamp = Date.now();
-  }
-
-  const prevSeq = streamSequenceMap.get(timestamp) ?? -1;
-
-  sequence = prevSeq + 1;
-  if (timestamp == 0 && sequence == 0) sequence++;
-  streamSequenceMap.set(timestamp, sequence);
-
-  const fullId = `${timestamp}-${sequence}`;
-  return fullId;
-}
 
 console.log("Logs from your program will appear here!");
 
@@ -134,7 +114,52 @@ const server = net.createServer((connection) => {
       }
       redis_stream[streamKey].push(entry);
       connection.write(`$${entryId.length}\r\n${entryId}\r\n`);
+    } else if (intr == "xrange") {
+      const streamKey = command[4];
+      let startkey = command[6];
+      let endkey = command[8];
+      
+      if (!startkey.includes('-'))
+        startkey += '-0';
+      if (!endkey.includes('-'))
+        endkey += '-18446744073709551615';
+      
+      if (!redis_stream[streamKey]) {
+        redis_stream[streamKey] = [];
+      }
+      
+      const stream = redis_stream[streamKey];
+      const [startMs, startSequence] = startkey.split("-");
+      const [endMs, endSequence] = endkey.split("-");
+      
+      const result = stream
+        .filter(item => {
+          const [itemMs, itemSequence] = item.id.split("-");
+          if (itemMs < startMs || (itemMs === startMs && itemSequence < (startSequence || "0"))) {
+            return false;
+          }
+          if (itemMs > endMs || (itemMs === endMs && endSequence && itemSequence > endSequence)) {
+            return false;
+          }
+          return true;
+        })
+        .map(item => {
+          const fields = Object.entries(item).filter(([key]) => key !== 'id').flat();
+          return [item.id, fields];
+        });
+      
+      let response = `*${result.length}\r\n`;
+      for (const [id, fields] of result) {
+        response += `*2\r\n`;
+        response += `$${id.length}\r\n${id}\r\n`;
+        response += `*${fields.length}\r\n`;
+        for (const field of fields) {
+          response += `$${field.length}\r\n${field}\r\n`;
+        }
+      }
+      connection.write(response);
     }
+    
   });
 });
 
