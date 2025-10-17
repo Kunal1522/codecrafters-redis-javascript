@@ -26,7 +26,7 @@ function generateStreamId(rawId) {
   streamSequenceMap.set(timestamp, sequence);
 
   const fullId = `${timestamp}-${sequence}`;
-  return `$${fullId.length}\r\n${fullId}\r\n`;
+  return fullId;
 }
 
 console.log("Logs from your program will appear here!");
@@ -91,7 +91,7 @@ const server = net.createServer((connection) => {
     } else if (intr == "xadd") {
       const streamKey = command[4];
       const entryId = command[6];
-      entryId = streamSequenceMap(entryId);
+      entryId = generateStreamId(entryId);
       if (!redis_stream[streamKey]) {
         redis_stream[streamKey] = [];
       }
