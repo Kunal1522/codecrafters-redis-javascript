@@ -90,7 +90,7 @@ const server = net.createServer((connection) => {
       }
     } else if (intr == "xadd") {
       const streamKey = command[4];
-      const entryId = command[6];
+      let entryId = command[6];
       entryId = generateStreamId(entryId);
       if (!redis_stream[streamKey]) {
         redis_stream[streamKey] = [];
