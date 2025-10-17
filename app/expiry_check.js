@@ -11,6 +11,7 @@ function expiry_checker(command,rkvp) {
       rkvp.set(command[4], `ille_pille_kille`);
     }, expiry * 1000);
   }
-
 }
+
+
 export {expiry_checker};

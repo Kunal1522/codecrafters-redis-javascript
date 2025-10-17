@@ -6,10 +6,30 @@ import {
   blop_handler,
   rpush_handler,
 } from "./command_handlers.js";
-
+const redis_last_timestamp_key = new Map();
+function auto_generate_id(id) {
+  const [millisecondsTime, sequenceNumber] = id.split("-");
+  if (sequenceNumber == "*") {
+    if (
+      redis_last_timestamp_key[millisecondsTime].length == 0 &&
+      millisecondsTime != 0
+    ) {
+      redis_last_timestamp_key.set(millisecondsTime, 0);
+    } else if (millisecondsTime == 0) {
+      redis_key_value_pair.set(millisecondsTime, 1);
+    } else if (redis_last_timestamp_key[millisecondsTime].length > 0) {
+      let last_sequence = redis_last_timestamp_key.get(millisecondsTime);
+      last_sequence = Number(last_sequence) + 1;
+      sequenceNumber = last_sequence;
+      redis_last_timestamp_key.set(millisecondsTime, last_sequence);
+    }
+  }
+  const id_length =
+    millisecondsTime.toString().length + sequenceNumber.toString().length;
+  return `$${id_length}\r\n${millisecondsTime}-${sequenceNumber}\r\n`;
+}
 console.log("Logs from your program will appear here!");
 
-// Move these OUTSIDE the connection callback so they're shared across all connections
 const redis_key_value_pair = new Map();
 const redis_list = {};
 const blop_connections = {};
@@ -60,8 +80,6 @@ const server = net.createServer((connection) => {
       blop_handler(command, redis_list, blop_connections, connection);
     } else if (intr == "type") {
       const key = command[4];
-
-      // Check if key exists in streams
       if (redis_stream[key]) {
         connection.write("+stream\r\n");
       } else if (redis_key_value_pair.has(key)) {
@@ -71,12 +89,14 @@ const server = net.createServer((connection) => {
       }
     } else if (intr == "xadd") {
       const streamKey = command[4];
-      const entryId = command[6];   
+      const entryId = command[6];
+      entryId = auto_generate_id(entryId);
       if (!redis_stream[streamKey]) {
         redis_stream[streamKey] = [];
       }
       console.log("entryId:", entryId);
-      const [millisecondsTime, sequenceNumber] = entryId.split('-');
+
+      const [millisecondsTime, sequenceNumber] = entryId.split("-");
       if (millisecondsTime == 0 && sequenceNumber == 0) {
         connection.write(
           "-ERR The ID specified in XADD must be greater than 0-0\r\n"
@@ -89,19 +109,21 @@ const server = net.createServer((connection) => {
           );
         }
       } else {
-         let flag = true;
+        let flag = true;
         const lastElement = redis_stream[streamKey].slice(-1);
         const [lasttime, lastsequence] = lastElement[0].id.split("-");
         if (millisecondsTime < lasttime) flag = false;
         else if (millisecondsTime == lasttime && sequenceNumber <= lastsequence)
           flag = false;
-        if(!flag)
-        {
-          connection.write('-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n');
+        if (!flag) {
+          connection.write(
+            "-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n"
+          );
           return;
         }
       }
       const entry = { id: entryId };
+
       for (let i = 8; i < command.length; i += 4) {
         const fieldName = command[i];
         const fieldValue = command[i + 2];
