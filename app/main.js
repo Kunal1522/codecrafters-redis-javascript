@@ -6,28 +6,29 @@ import {
   blop_handler,
   rpush_handler,
 } from "./command_handlers.js";
-const redis_last_timestamp_key = new Map();
-function auto_generate_id(id) {
-  const [millisecondsTime, sequenceNumber] = id.split("-");
-  if (sequenceNumber == "*") {
-    if (
-      redis_last_timestamp_key[millisecondsTime].length == 0 &&
-      millisecondsTime != 0
-    ) {
-      redis_last_timestamp_key.set(millisecondsTime, 0);
-    } else if (millisecondsTime == 0) {
-      redis_key_value_pair.set(millisecondsTime, 1);
-    } else if (redis_last_timestamp_key[millisecondsTime].length > 0) {
-      let last_sequence = redis_last_timestamp_key.get(millisecondsTime);
-      last_sequence = Number(last_sequence) + 1;
-      sequenceNumber = last_sequence;
-      redis_last_timestamp_key.set(millisecondsTime, last_sequence);
-    }
+const streamSequenceMap = new Map();
+function generateStreamId(rawId) {
+  if (!rawId) return null;
+
+  if (rawId.includes("-") && rawId !== "*") {
+    return `$${rawId.length}\r\n${rawId}\r\n`;
   }
-  const id_length =
-    millisecondsTime.toString().length + sequenceNumber.toString().length;
-  return `$${id_length}\r\n${millisecondsTime}-${sequenceNumber}\r\n`;
+
+  let timestamp, sequence;
+  if (rawId.endsWith("-*")) {
+    timestamp = rawId.split("-")[0];
+  } else if (rawId === "*") {
+    timestamp = Date.now();
+  }
+
+  const prevSeq = streamSequenceMap.get(timestamp) ?? -1;
+  sequence = prevSeq + 1;
+  streamSequenceMap.set(timestamp, sequence);
+
+  const fullId = `${timestamp}-${sequence}`;
+  return `$${fullId.length}\r\n${fullId}\r\n`;
 }
+
 console.log("Logs from your program will appear here!");
 
 const redis_key_value_pair = new Map();
@@ -90,7 +91,7 @@ const server = net.createServer((connection) => {
     } else if (intr == "xadd") {
       const streamKey = command[4];
       const entryId = command[6];
-      entryId = auto_generate_id(entryId);
+      entryId = streamSequenceMap(entryId);
       if (!redis_stream[streamKey]) {
         redis_stream[streamKey] = [];
       }
