@@ -9,18 +9,15 @@ import {
 const streamSequenceMap = new Map();
 function generateStreamId(rawId) {
   if (!rawId) return null;
-
-  if (rawId.includes("-") && rawId !== "*") {
+  if (rawId.includes("-") && !rawId.endsWith("-*")) {
     return `$${rawId.length}\r\n${rawId}\r\n`;
   }
-
   let timestamp, sequence;
   if (rawId.endsWith("-*")) {
     timestamp = rawId.split("-")[0];
   } else if (rawId === "*") {
     timestamp = Date.now();
   }
-
   const prevSeq = streamSequenceMap.get(timestamp) ?? -1;
   sequence = prevSeq + 1;
   streamSequenceMap.set(timestamp, sequence);
