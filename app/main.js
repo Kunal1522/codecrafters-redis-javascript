@@ -10,7 +10,7 @@ const streamSequenceMap = new Map();
 function generateStreamId(rawId) {
   if (!rawId) return null;
   if (rawId.includes("-") && !rawId.endsWith("-*")) {
-    return `$${rawId.length}\r\n${rawId}\r\n`;
+    return rawId;
   }
   let timestamp, sequence;
   if (rawId.endsWith("-*")) {
@@ -18,8 +18,11 @@ function generateStreamId(rawId) {
   } else if (rawId === "*") {
     timestamp = Date.now();
   }
+
   const prevSeq = streamSequenceMap.get(timestamp) ?? -1;
+
   sequence = prevSeq + 1;
+  if (timestamp == 0 && sequence == 0) sequence++;
   streamSequenceMap.set(timestamp, sequence);
 
   const fullId = `${timestamp}-${sequence}`;
