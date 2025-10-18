@@ -143,15 +143,18 @@ const server = net.createServer((connection) => {
         startkey += '-0';
       if (!endkey.includes('-'))
         endkey += '-18446744073709551615';
-      
       if (!redis_stream[streamKey]) {
         redis_stream[streamKey] = [];
       }
       
       const stream = redis_stream[streamKey];
       const [startMs, startSequence] = startkey.split("-");
+ 
       const [endMs, endSequence] = endkey.split("-");
-      
+      if(endkey=='+')
+      {
+          [endMs,endSequence]=redis_stream[streamKey].splice(-1).split('-');
+      }
       const result = stream
         .filter(item => {
           const [itemMs, itemSequence] = item.id.split("-");
