@@ -6,6 +6,7 @@ import {
   lpop_handler,
   blop_handler,
   rpush_handler,
+  x_range_handler
 } from "./command_handlers.js";
 const streamSequenceMap = new Map();
 
@@ -135,62 +136,68 @@ const server = net.createServer((connection) => {
       redis_stream[streamKey].push(entry);
       connection.write(`$${entryId.length}\r\n${entryId}\r\n`);
     } else if (intr == "xrange") {
-      const streamKey = command[4];
-      let startkey = command[6];
-      let endkey = command[8];
-      let endkey_copy = endkey;
-      if (!startkey.includes("-")) startkey += "-0";
-      if (!endkey.includes("-")) endkey += "-18446744073709551615";
+        
+        x_range_handler(command[6],command[8],command,redis_stream,connection);
+    }
+    else if(intr=='xread'){
+      // XREAD STREAMS <key> <id>
+      // Find "STREAMS" keyword position
+      let streamsIndex = -1;
+      for (let i = 0; i < command.length; i++) {
+        if (command[i] && command[i].toLowerCase() === 'streams') {
+          streamsIndex = i;
+          break;
+        }
+      }
+      
+      // Get stream key and start ID (they come after "STREAMS" with length indicators)
+      const streamKey = command[streamsIndex + 2];
+      const startId = command[streamsIndex + 4];
+      
       if (!redis_stream[streamKey]) {
         redis_stream[streamKey] = [];
       }
-
+      
       const stream = redis_stream[streamKey];
-      const [startMs, startSequence] = startkey.split("-");
-
-      let [endMs, endSequence] = endkey.split("-");
-      if (endkey_copy == "+") {
-         console.log(stream.slice(-1)[0]);
-        [endMs, endSequence] = stream.slice(-1)[0].id.split('-');
-        console.log(endMs, endSequence);
-      }
-      console.log(endMs, endSequence);
-      const result = stream
-        .filter((item) => {
-          const [itemMs, itemSequence] = item.id.split("-");
-          if (
-            itemMs < startMs ||
-            (itemMs === startMs && itemSequence < (startSequence || "0"))
-          ) {
-            return false;
-          }
-          if (
-            itemMs > endMs ||
-            (itemMs === endMs && endSequence && itemSequence > endSequence)
-          ) {
-            return false;
-          }
+      const [startMs, startSequence] = startId.split("-");
+      
+      const filteredEntries = stream.filter((item) => {
+        const [itemMs, itemSequence] = item.id.split("-");
+        
+        // Must be strictly greater than startId
+        if (itemMs > startMs) {
           return true;
-        })
-        .map((item) => {
-          const fields = Object.entries(item)
-            .filter(([key]) => key !== "id")
-            .flat();
-          return [item.id, fields];
-        });
-
-      let response = `*${result.length}\r\n`;
-      for (const [id, fields] of result) {
-        response += `*2\r\n`;
-        response += `$${id.length}\r\n${id}\r\n`;
-        response += `*${fields.length}\r\n`;
+        } else if (itemMs === startMs && itemSequence > startSequence) {
+          return true;
+        }
+        return false;
+      });
+      
+      // Build XREAD response: array of [streamKey, entries]
+      let response = `*1\r\n`; // One stream
+      response += `*2\r\n`; // Stream has 2 parts: key and entries
+      response += `$${streamKey.length}\r\n${streamKey}\r\n`; // Stream key
+      response += `*${filteredEntries.length}\r\n`; // Number of entries
+      
+      for (const entry of filteredEntries) {
+        response += `*2\r\n`; // Entry has 2 parts: id and fields
+        response += `$${entry.id.length}\r\n${entry.id}\r\n`; // Entry ID
+        
+        // Extract fields (all properties except 'id')
+        const fields = Object.entries(entry)
+          .filter(([key]) => key !== "id")
+          .flat();
+        
+        response += `*${fields.length}\r\n`; // Number of field elements
         for (const field of fields) {
           response += `$${field.length}\r\n${field}\r\n`;
         }
       }
+      
       connection.write(response);
     }
   });
+
 });
 
 server.listen(6379, "127.0.0.1");
