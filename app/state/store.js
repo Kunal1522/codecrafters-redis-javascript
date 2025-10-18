@@ -3,5 +3,5 @@ const redisList = {};
 const blpopConnections = {};
 const redisStream = {};
 const streamSequenceMap = new Map();
-
-export { redisKeyValuePair, redisList, blpopConnections, redisStream, streamSequenceMap };
+const blocked_streams=[];
+export { redisKeyValuePair, redisList, blpopConnections, redisStream, streamSequenceMap,blocked_streams };
