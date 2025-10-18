@@ -136,53 +136,73 @@ function xread_handler(command, connection) {
       break;
     }
   }
-  const stream_count = (command.length() - 6) / 4; /*why lets say array  is 
+  const stream_count = (command.length - 6) / 4; /*why lets say array  is 
   ['*4','$5','XREAD','$7','streams', '$6', 'orange','$3','0-0','' ]   
      now the left byte diviedd bey 4 because length-6 /2 for ids and length-6 /2 is streamkey    */
-  const stream_key_index = streamsIndex + 2;
+  let stream_key_index = streamsIndex + 2;
   let stream_keys = [];
   for (let i = 0; i < stream_count; i++) {
     stream_keys.push(command[stream_key_index]);
     stream_key_index += 2;
   }
-  const startId = command[streamsIndex + 4];
+  
+  // Ensure all streams exist
   for (let i = 0; i < stream_count; i++) {
     const streamKey = stream_keys[i];
     if (!redisStream[streamKey]) {
       redisStream[streamKey] = [];
     }
   }
-  let offset_ids=5+(stream_count*2)+1;
+  
+  let offset_ids = 5 + (stream_count * 2) + 1;
+  console.log(stream_keys);
+  
+  // Build array of results first
+  const results = [];
   for (let i = 0; i < stream_count; i++) {
     const streamKey = stream_keys[i];
     const stream = redisStream[streamKey];
-    const startId=command[offset_ids];
-    offset_ids+=2;
+    const startId = command[offset_ids];
+    offset_ids += 2;
     const [startMs, startSequence] = startId.split("-");
+    
     const filteredEntries = stream.filter((item) => {
       const [itemMs, itemSequence] = item.id.split("-");
       if (itemMs > startMs) return true;
       if (itemMs === startMs && itemSequence > startSequence) return true;
       return false;
     });
-    const response = `*1\r\n`;
-    response += `*2\r\n`;
-    response += `$${streamKey.length}\r\n${streamKey}\r\n`;
-    response += `*${filteredEntries.length}\r\n`;
-
-    for (const entry of filteredEntries) {
-      response += `*2\r\n`;
-      response += `$${entry.id.length}\r\n${entry.id}\r\n`;
+    
+    // Map entries to array format [id, [field1, value1, field2, value2, ...]]
+    const entriesArray = filteredEntries.map((entry) => {
       const fields = Object.entries(entry)
         .filter(([key]) => key !== "id")
         .flat();
+      return [entry.id, fields];
+    });
+    
+    results.push([streamKey, entriesArray]);
+  }
+  
+
+  let response = `*${results.length}\r\n`; 
+  
+  for (const [streamKey, entriesArray] of results) {
+    response += `*2\r\n`; // Stream has 2 parts: key and entries
+    response += `$${streamKey.length}\r\n${streamKey}\r\n`;
+    response += `*${entriesArray.length}\r\n`; // Number of entries
+
+    for (const [id, fields] of entriesArray) {
+      response += `*2\r\n`; // Entry has 2 parts: id and fields
+      response += `$${id.length}\r\n${id}\r\n`;
       response += `*${fields.length}\r\n`;
       for (const field of fields) {
         response += `$${field.length}\r\n${field}\r\n`;
       }
     }
-    connection.write(response);
   }
+  
+  connection.write(response);
 }
 
 export { generateStreamId, xadd_handler, x_range_handler, xread_handler };
