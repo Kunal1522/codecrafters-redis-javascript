@@ -155,6 +155,7 @@ const server = net.createServer((connection) => {
       {
           [endMs,endSequence]=redis_stream[streamKey].splice(-1).split('-');
       }
+      console.log(endMs,endSequence);
       const result = stream
         .filter(item => {
           const [itemMs, itemSequence] = item.id.split("-");
