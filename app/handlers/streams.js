@@ -73,8 +73,11 @@ function xadd_handler(command, connection,blocked_streams) {
   if (blocked_streams[streamKey] && blocked_streams[streamKey].length > 0) {
     const client = blocked_streams[streamKey].shift();
     
+    // Get the newly added entry from the stream (it's the last one)
+    const newEntry = redisStream[streamKey][redisStream[streamKey].length - 1];
+    
     // Build response with just the newly added entry
-    const fields = Object.entries(entry)
+    const fields = Object.entries(newEntry)
       .filter(([k]) => k !== "id")
       .flat();
     
@@ -84,7 +87,7 @@ function xadd_handler(command, connection,blocked_streams) {
     response += `$${streamKey.length}\r\n${streamKey}\r\n`;
     response += `*1\r\n`; // 1 entry (the new one)
     response += `*2\r\n`; // Entry has 2 parts: id and fields
-    response += `$${entryId.length}\r\n${entryId}\r\n`;
+    response += `$${newEntry.id.length}\r\n${newEntry.id}\r\n`;
     response += `*${fields.length}\r\n`;
     for (const field of fields) {
       response += `$${field.length}\r\n${field}\r\n`;
