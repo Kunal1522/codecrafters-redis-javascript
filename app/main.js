@@ -138,40 +138,45 @@ const server = net.createServer((connection) => {
       const streamKey = command[4];
       let startkey = command[6];
       let endkey = command[8];
-      
-      if (!startkey.includes('-'))
-        startkey += '-0';
-      if (!endkey.includes('-'))
-        endkey += '-18446744073709551615';
+      let endkey_copy = endkey;
+      if (!startkey.includes("-")) startkey += "-0";
+      if (!endkey.includes("-")) endkey += "-18446744073709551615";
       if (!redis_stream[streamKey]) {
         redis_stream[streamKey] = [];
       }
-      
+
       const stream = redis_stream[streamKey];
       const [startMs, startSequence] = startkey.split("-");
- 
+
       let [endMs, endSequence] = endkey.split("-");
-      if(endkey=='+')
-      {
-          [endMs,endSequence]=redis_stream[streamKey].splice(-1).split('-');
+      if (endkey_copy == "+") {
+        [endMs, endSequence] = redis_stream[streamKey].splice(-1).split("-");
       }
-      console.log(endMs,endSequence);
+      console.log(endMs, endSequence);
       const result = stream
-        .filter(item => {
+        .filter((item) => {
           const [itemMs, itemSequence] = item.id.split("-");
-          if (itemMs < startMs || (itemMs === startMs && itemSequence < (startSequence || "0"))) {
+          if (
+            itemMs < startMs ||
+            (itemMs === startMs && itemSequence < (startSequence || "0"))
+          ) {
             return false;
           }
-          if (itemMs > endMs || (itemMs === endMs && endSequence && itemSequence > endSequence)) {
+          if (
+            itemMs > endMs ||
+            (itemMs === endMs && endSequence && itemSequence > endSequence)
+          ) {
             return false;
           }
           return true;
         })
-        .map(item => {
-          const fields = Object.entries(item).filter(([key]) => key !== 'id').flat();
+        .map((item) => {
+          const fields = Object.entries(item)
+            .filter(([key]) => key !== "id")
+            .flat();
           return [item.id, fields];
         });
-      
+
       let response = `*${result.length}\r\n`;
       for (const [id, fields] of result) {
         response += `*2\r\n`;
@@ -183,7 +188,6 @@ const server = net.createServer((connection) => {
       }
       connection.write(response);
     }
-    
   });
 });
 
