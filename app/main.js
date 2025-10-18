@@ -150,7 +150,7 @@ const server = net.createServer((connection) => {
 
       let [endMs, endSequence] = endkey.split("-");
       if (endkey_copy == "+") {
-         console.log(stream.splice(-1)[0]);
+         console.log(stream.slice(-1)[0]);
         [endMs, endSequence] = stream.slice(-1)[0].id.split('-');
         console.log(endMs, endSequence);
       }
