@@ -150,7 +150,7 @@ const server = net.createServer((connection) => {
       const stream = redis_stream[streamKey];
       const [startMs, startSequence] = startkey.split("-");
  
-      const [endMs, endSequence] = endkey.split("-");
+      let [endMs, endSequence] = endkey.split("-");
       if(endkey=='+')
       {
           [endMs,endSequence]=redis_stream[streamKey].splice(-1).split('-');
