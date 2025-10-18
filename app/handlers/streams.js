@@ -248,7 +248,7 @@ function xread_handler(command, connection, blocked_streams) {
   // Build array of results first
   const results = [];
   let hasEntries = false;
-  
+
   for (let i = 0; i < stream_count; i++) {
     const streamKey = stream_keys[i];
     const stream = redisStream[streamKey];
@@ -264,17 +264,15 @@ function xread_handler(command, connection, blocked_streams) {
 
     if (filteredEntries.length > 0) {
       hasEntries = true;
+      // Only include streams with new entries
+      const entriesArray = filteredEntries.map((entry) => {
+        const fields = Object.entries(entry)
+          .filter(([key]) => key !== "id")
+          .flat();
+        return [entry.id, fields];
+      });
+      results.push([streamKey, entriesArray]);
     }
-
-    // Map entries to array format [id, [field1, value1, field2, value2, ...]]
-    const entriesArray = filteredEntries.map((entry) => {
-      const fields = Object.entries(entry)
-        .filter(([key]) => key !== "id")
-        .flat();
-      return [entry.id, fields];
-    });
-
-    results.push([streamKey, entriesArray]);
   }
 
   // If blocking is enabled and no entries are available, block the client
