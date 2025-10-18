@@ -70,69 +70,27 @@ function xadd_handler(command, connection,blocked_streams) {
   connection.write(`$${entryId.length}\r\n${entryId}\r\n`);
 
   // Check if there are any blocked XREAD clients waiting for this stream
-  if (blocked_streams.length > 0) {
-    // Check each blocked client to see if they're waiting for this stream
-    for (let i = blocked_streams.length - 1; i >= 0; i--) {
-      const client = blocked_streams[i];
-      
-      // Check if this client is waiting for the stream we just added to
-      if (client.streamKeys.includes(streamKey)) {
-        // Get the start ID this client is waiting for
-        const startIdIndex = client.streamKeys.indexOf(streamKey);
-        const startId = client.startIds[startIdIndex];
-        const [startMs, startSequence] = startId.split("-");
-        
-        // Check if the new entry is greater than the start ID
-        if (millisecondsTime > startMs || 
-            (millisecondsTime === startMs && sequenceNumber > startSequence)) {
-          // Remove this client from blocked list
-          blocked_streams.splice(i, 1);
-          
-          // Build response for this blocked client
-          const results = [];
-          for (let j = 0; j < client.streamKeys.length; j++) {
-            const key = client.streamKeys[j];
-            const sId = client.startIds[j];
-            const [sMs, sSeq] = sId.split("-");
-            
-            if (!redisStream[key]) continue;
-            
-            const filteredEntries = redisStream[key].filter((item) => {
-              const [iMs, iSeq] = item.id.split("-");
-              if (iMs > sMs) return true;
-              if (iMs === sMs && iSeq > sSeq) return true;
-              return false;
-            });
-            
-            const entriesArray = filteredEntries.map((e) => {
-              const fields = Object.entries(e)
-                .filter(([k]) => k !== "id")
-                .flat();
-              return [e.id, fields];
-            });
-            
-            results.push([key, entriesArray]);
-          }
-          
-          // Build RESP response
-          let response = `*${results.length}\r\n`;
-          for (const [sk, entriesArray] of results) {
-            response += `*2\r\n`;
-            response += `$${sk.length}\r\n${sk}\r\n`;
-            response += `*${entriesArray.length}\r\n`;
-            for (const [id, fields] of entriesArray) {
-              response += `*2\r\n`;
-              response += `$${id.length}\r\n${id}\r\n`;
-              response += `*${fields.length}\r\n`;
-              for (const field of fields) {
-                response += `$${field.length}\r\n${field}\r\n`;
-              }
-            }
-          }
-          client.connection.write(response);
-        }
-      }
+  if (blocked_streams[streamKey] && blocked_streams[streamKey].length > 0) {
+    const client = blocked_streams[streamKey].shift();
+    
+    // Build response with just the newly added entry
+    const fields = Object.entries(entry)
+      .filter(([k]) => k !== "id")
+      .flat();
+    
+    // Build RESP response for the single new entry
+    let response = `*1\r\n`; // 1 stream
+    response += `*2\r\n`; // Stream has 2 parts: key and entries
+    response += `$${streamKey.length}\r\n${streamKey}\r\n`;
+    response += `*1\r\n`; // 1 entry (the new one)
+    response += `*2\r\n`; // Entry has 2 parts: id and fields
+    response += `$${entryId.length}\r\n${entryId}\r\n`;
+    response += `*${fields.length}\r\n`;
+    for (const field of fields) {
+      response += `$${field.length}\r\n${field}\r\n`;
     }
+    
+    client.connection.write(response);
   }
 }
 
@@ -279,20 +237,24 @@ function xread_handler(command, connection, blocked_streams) {
   if (timeout !== null && !hasEntries) {
     const client = {
       connection: connection,
-      streamKeys: stream_keys,
-      startIds: start_ids
+      streamKey: stream_keys[0], // For now, support single stream blocking
+      startId: start_ids[0]
     };
     
-    blocked_streams.push(client);
+    // Add client to the blocked queue for this specific stream
+    const streamKey = stream_keys[0];
+    if (!blocked_streams[streamKey]) {
+      blocked_streams[streamKey] = [];
+    }
+    blocked_streams[streamKey].push(client);
     
     // If timeout is not 0, set a timer to unblock with null response
     if (timeout !== 0) {
-      const clientIndex = blocked_streams.length - 1;
       setTimeout(() => {
-        // Check if this client is still in the blocked list
-        const idx = blocked_streams.indexOf(client);
-        if (idx !== -1) {
-          blocked_streams.splice(idx, 1);
+        // Check if this client is still in the blocked list for this stream
+        const idx = blocked_streams[streamKey]?.indexOf(client);
+        if (idx !== undefined && idx !== -1) {
+          blocked_streams[streamKey].splice(idx, 1);
           connection.write(`*-1\r\n`);
         }
       }, timeout);
