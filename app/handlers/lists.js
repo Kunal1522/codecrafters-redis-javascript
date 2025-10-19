@@ -113,17 +113,17 @@ function rpush_handler(command, redis_list, blop_connections, connection) {
 function incr_handler(command, redis_key_value, connection) {
   const key = command[4];
   console.log(typeof redis_key_value.get(key));
-  if (redis_key_value.get(key) == undefined)
-    { redis_key_value.set(key, 0);
-    }
+  if (redis_key_value.get(key) == undefined) {
+    redis_key_value.set(key, 0);
+  }
   if (isNaN(Number(redis_key_value.get(key)))) {
     connection.write("-ERR value is not an integer or out of range\r\n");
-    return ;
-  } 
-    const value = Number(redis_key_value.get(key));
-    redis_key_value.set(key, value + 1);
-    connection.write(`:${value + 1}\r\n`);
-
+    return;
+  }
+  const value = Number(redis_key_value.get(key));
+  let newValue = Number(value) + 1;
+  redis_key_value.set(key, String(newValue));
+  connection.write(`:${newValue}\r\n`);
 }
 
 export {

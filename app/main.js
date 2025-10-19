@@ -27,6 +27,7 @@ const server = net.createServer((connection) => {
       if (value === "ille_pille_kille" || value === undefined) {
         connection.write(`$-1\r\n`);
       } else {
+        
         connection.write(`$${value.length}\r\n${value}\r\n`);
       }
     } else if (intr === "rpush") {
