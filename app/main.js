@@ -1,7 +1,7 @@
 import net from "net";
 import { expiry_checker } from "./utils/utils.js";
 import { redisKeyValuePair, redisList, blpopConnections, redisStream, blocked_streams } from "./state/store.js";
-import { lrange_handler, lpop_handler, blop_handler, rpush_handler } from "./handlers/lists.js";
+import { lrange_handler, lpop_handler, blop_handler, rpush_handler,incr_handler } from "./handlers/lists.js";
 import { xadd_handler, x_range_handler, xread_handler } from "./handlers/streams.js";
 
 console.log("Logs from your program will appear here!");
@@ -67,7 +67,11 @@ const server = net.createServer((connection) => {
       x_range_handler(command[6], command[8], command, connection);
     } else if (intr === "xread") {
       xread_handler(command, connection, blocked_streams);
-    } else {
+      
+    } 
+    else if (intr=="incr" ){
+        incr_handler(command,redisKeyValuePair, connection)
+    }else {
       connection.write("-ERR unknown command\r\n");
     }
   });

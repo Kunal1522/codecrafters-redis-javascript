@@ -110,5 +110,23 @@ function rpush_handler(command, redis_list, blop_connections, connection) {
     }
   }
 }
+function incr_handler(command, redis_key_value, connection) {
+  const key = command[4];
+  if (redis_key_value.get(key) == undefined) 
+      redis_key_value.set(key, 0);
+  else if(typeof((redis_key_value.get(key)))!=Number)
+  {
+        connection.write("-ERR value is not an integer or out of range\r\n");
+  }
+  const value = redis_key_value.get(key);
+  redis_key_value.set(key, value + 1);
+  connection.write(`:${value + 1}\r\n`);
+}
 
-export { lrange_handler, lpop_handler, blop_handler, rpush_handler };
+export {
+  lrange_handler,
+  lpop_handler,
+  blop_handler,
+  rpush_handler,
+  incr_handler,
+};
