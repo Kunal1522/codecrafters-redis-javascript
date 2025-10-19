@@ -68,20 +68,17 @@ function xadd_handler(command, connection,blocked_streams) {
   }
   redisStream[streamKey].push(entry);
   connection.write(`$${entryId.length}\r\n${entryId}\r\n`);
-
-  // Check if there are any blocked XREAD clients waiting for this stream
+    
+    // console.log("blocked_streams[streamKey].length",blocked_streams[streamKey].length);
   if (blocked_streams[streamKey] && blocked_streams[streamKey].length > 0) {
+    console.log("inside the block stream");
     const client = blocked_streams[streamKey].shift();
-    
-    // Get the newly added entry from the stream (it's the last one)
-    const newEntry = redisStream[streamKey][redisStream[streamKey].length - 1];
-    
+    const newEntry = redisStream[streamKey][redisStream[streamKey].length - 1];    
     // Build response with just the newly added entry
+    console.log("neentry",newEntry);
     const fields = Object.entries(newEntry)
       .filter(([k]) => k !== "id")
       .flat();
-    
-    // Build RESP response for the single new entry
     let response = `*1\r\n`; // 1 stream
     response += `*2\r\n`; // Stream has 2 parts: key and entries
     response += `$${streamKey.length}\r\n${streamKey}\r\n`;
@@ -92,7 +89,6 @@ function xadd_handler(command, connection,blocked_streams) {
     for (const field of fields) {
       response += `$${field.length}\r\n${field}\r\n`;
     }
-    
     client.connection.write(response);
   }
 }
@@ -169,7 +165,7 @@ function xread_handler(command, connection, blocked_streams) {
       break;
     }
   }
-  
+  console.log("timeout,blockset",timeout,blockset);
   // Find STREAMS keyword
   let streamsIndex = -1;
   for (let i = 0; i < command.length; i++) {
@@ -234,13 +230,10 @@ function xread_handler(command, connection, blocked_streams) {
       });
       results.push([streamKey, entriesArray]);
     }
-  }
-
-  // If blocking is enabled and no entries are available, block the client
-  if (timeout !== null && !hasEntries) {
+  } 
+  if (timeout !== null ) {
     const client = {
       connection: connection,
-      streamKey: stream_keys[0], // For now, support single stream blocking
       startId: start_ids[0]
     };
     
@@ -250,7 +243,7 @@ function xread_handler(command, connection, blocked_streams) {
       blocked_streams[streamKey] = [];
     }
     blocked_streams[streamKey].push(client);
-    
+    console.log("blockedstream",blocked_streams);
     // If timeout is not 0, set a timer to unblock with null response
     if (timeout !== 0) {
       setTimeout(() => {
