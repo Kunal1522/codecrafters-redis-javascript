@@ -12,6 +12,4 @@ function expiry_checker(command,rkvp) {
     }, expiry * 1000);
   }
 }
-
-
 export {expiry_checker};

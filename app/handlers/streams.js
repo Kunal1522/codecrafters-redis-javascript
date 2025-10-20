@@ -20,7 +20,6 @@ function generateStreamId(rawId) {
   const fullId = `${timestamp}-${sequence}`;
   return fullId;
 }
-
 function xadd_handler(command, connection,blocked_streams) {
   const streamKey = command[4];
   let entryId = command[6];
@@ -114,7 +113,6 @@ function x_range_handler(startkey, endkey, command, connection) {
       endSequence = "18446744073709551615";
     }
   }
-
   const result = stream
     .filter((item) => {
       const [itemMs, itemSequence] = item.id.split("-");
@@ -237,14 +235,14 @@ function xread_handler(command, connection, blocked_streams) {
       startId: start_ids[0]
     };
     
-    // Add client to the blocked queue for this specific stream
+  
     const streamKey = stream_keys[0];
     if (!blocked_streams[streamKey]) {
       blocked_streams[streamKey] = [];
     }
     blocked_streams[streamKey].push(client);
     console.log("blockedstream",blocked_streams);
-    // If timeout is not 0, set a timer to unblock with null response
+   
     if (timeout !== 0) {
       setTimeout(() => {
         // Check if this client is still in the blocked list for this stream
@@ -276,7 +274,6 @@ function xread_handler(command, connection, blocked_streams) {
       }
     }
   }
-
   connection.write(response);
 }
 
