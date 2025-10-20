@@ -1,24 +1,38 @@
 import net from "net";
 import { expiry_checker } from "./utils/utils.js";
-import { redisKeyValuePair, redisList, blpopConnections, redisStream, blocked_streams } from "./state/store.js";
-import { lrange_handler, lpop_handler, blop_handler, rpush_handler,incr_handler } from "./handlers/lists.js";
-import { xadd_handler, x_range_handler, xread_handler } from "./handlers/streams.js";
+import {
+  redisKeyValuePair,
+  redisList,
+  blpopConnections,
+  redisStream,
+  blocked_streams,
+} from "./state/store.js";
+import {
+  lrange_handler,
+  lpop_handler,
+  blop_handler,
+  rpush_handler,
+  incr_handler,
+} from "./handlers/lists.js";
+import {
+  xadd_handler,
+  x_range_handler,
+  xread_handler,
+} from "./handlers/streams.js";
 import { MyQueue } from "./utils/queue.js";
-import { multi_handler } from "./handlers/scheduler.js";
-let is_multi_active=false;
+import { multi_handler,exec_hanlder } from "./handlers/scheduler.js";
+let is_multi_active = false;
 console.log("Logs from your program will appear here!");
 
 const server = net.createServer((connection) => {
-  let taskqueue=new  MyQueue();
+  let taskqueue = new MyQueue();
   connection.on("data", (data) => {
     const command = data.toString().split("\r\n");
     const intr = command[2]?.toLowerCase();
-    console.log(command);  
-    if(is_multi_active)
-    {
-       multi_handler(command,connection,taskqueue);
-    }
-    else  if (intr === "ping") {
+    console.log(command);
+    if (is_multi_active) {
+      multi_handler(command, connection, taskqueue);
+    } else if (intr === "ping") {
       connection.write(`+PONG\r\n`);
     } else if (intr === "echo") {
       connection.write(command[3] + "\r\n" + command[4] + "\r\n");
@@ -33,7 +47,6 @@ const server = net.createServer((connection) => {
       if (value === "ille_pille_kille" || value === undefined) {
         connection.write(`$-1\r\n`);
       } else {
-        
         connection.write(`$${value.length}\r\n${value}\r\n`);
       }
     } else if (intr === "rpush") {
@@ -74,19 +87,16 @@ const server = net.createServer((connection) => {
       x_range_handler(command[6], command[8], command, connection);
     } else if (intr === "xread") {
       xread_handler(command, connection, blocked_streams);
-      
-    } 
-    else if (intr=="incr" ){
-        incr_handler(command,redisKeyValuePair, connection);
-    }
-    else if(intr=="multi")
-      {
-        is_multi_active=true;
-        connection.write(`+OK\r\n`);
-      }else {
+    } else if (intr == "incr") {
+      incr_handler(command, redisKeyValuePair, connection);
+    } else if (intr == "multi") {
+      is_multi_active = true;
+      connection.write(`+OK\r\n`);
+    } else if (intr == "exec") {
+        exec_hanlder(command,connection,taskqueue,is_multi_active);
+    } else {
       connection.write("-ERR unknown command\r\n");
     }
-
   });
 });
 
