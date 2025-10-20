@@ -4,10 +4,9 @@ function multi_handler(command, connection, taskqueue) {
     command: command,
   };
   taskqueue.push(task);
-  connection.write(`+QUEUED\r\n`);
 }
-function exec_hanlder(command, connection, taskqueue, is_multi_active) {
-  if (!is_multi_active) {
+function exec_hanlder(command, connection, taskqueue, multi) {
+  if (!multi.active) {
     connection.write(`-ERR EXEC without MULTI\r\n`);
     return;
   }
@@ -15,6 +14,7 @@ function exec_hanlder(command, connection, taskqueue, is_multi_active) {
   if (taskqueue.empty()) {
     connection.write("*0\r\n");
   }
-  is_multi_active = false;
+  multi.active = false;
+  console.log("is_mluti",multi.active);
 }
 export { multi_handler, exec_hanlder };

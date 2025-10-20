@@ -21,7 +21,7 @@ import {
 } from "./handlers/streams.js";
 import { MyQueue } from "./utils/queue.js";
 import { multi_handler,exec_hanlder } from "./handlers/scheduler.js";
-let is_multi_active = false;
+let multi={"active":false};;
 console.log("Logs from your program will appear here!");
 
 const server = net.createServer((connection) => {
@@ -30,7 +30,7 @@ const server = net.createServer((connection) => {
     const command = data.toString().split("\r\n");
     const intr = command[2]?.toLowerCase();
     console.log(command);
-    if (is_multi_active) {
+    if (multi.active && intr!="exec") {
       multi_handler(command, connection, taskqueue);
     } else if (intr === "ping") {
       connection.write(`+PONG\r\n`);
@@ -90,10 +90,11 @@ const server = net.createServer((connection) => {
     } else if (intr == "incr") {
       incr_handler(command, redisKeyValuePair, connection);
     } else if (intr == "multi") {
-      is_multi_active = true;
+      multi.active = true;
       connection.write(`+OK\r\n`);
     } else if (intr == "exec") {
-        exec_hanlder(command,connection,taskqueue,is_multi_active);
+      console.log("inside exec blog");
+        exec_hanlder(command,connection,taskqueue,multi);
     } else {
       connection.write("-ERR unknown command\r\n");
     }
