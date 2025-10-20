@@ -21,11 +21,12 @@ import {
 } from "./handlers/streams.js";
 import { MyQueue } from "./utils/queue.js";
 import { multi_handler,exec_hanlder } from "./handlers/scheduler.js";
-let multi={"active":false};;
+
 console.log("Logs from your program will appear here!");
 
 const server = net.createServer((connection) => {
   let taskqueue = new MyQueue();
+  let multi={"active":false};;
   connection.on("data", (data) => {
     const command = data.toString().split("\r\n");
     const intr = command[2]?.toLowerCase();
