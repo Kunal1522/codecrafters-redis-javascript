@@ -130,4 +130,16 @@ function exec_hanlder(command, connection, taskqueue, multi) {
   multi.active = false;
   console.log("is_multi", multi.active);
 }
+
+function discard_handler(command, connection, taskqueue, multi) {
+   if (!multi.active) {
+    connection.write(`-ERR DISCARD without MULTI\r\n`);
+    return;
+  }
+  while (!taskqueue.empty()) {
+    taskqueue.pop();
+  }
+  connection.write("+OK\r\n");
+  multi.active=false;
+}
 export { multi_handler, exec_hanlder };
