@@ -93,7 +93,6 @@ const server = net.createServer((connection) => {
       multi.active = true;
       connection.write(`+OK\r\n`);
     } else if (intr == "exec") {
-      console.log("inside exec blog");
         exec_hanlder(command,connection,taskqueue,multi);
     } else {
       connection.write("-ERR unknown command\r\n");

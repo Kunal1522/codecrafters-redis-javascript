@@ -4,6 +4,8 @@ function multi_handler(command, connection, taskqueue) {
     command: command,
   };
   taskqueue.push(task);
+    connection.write("+QUEUED\r\n");
+  
 }
 function exec_hanlder(command, connection, taskqueue, multi) {
   if (!multi.active) {
