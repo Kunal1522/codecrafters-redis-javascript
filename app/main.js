@@ -34,7 +34,7 @@ const server = net.createServer((connection) => {
     const intr = command[2]?.toLowerCase();
     console.log(command);
     if (multi.active && intr != "exec" && intr != "discard") {
-      multi_handler(command, connection, taskqueue);
+      multi_handler(data, connection, taskqueue);
     } else if (intr === "ping") {
       connection.write(`+PONG\r\n`);
     } else if (intr === "echo") {
@@ -96,9 +96,9 @@ const server = net.createServer((connection) => {
       multi.active = true;
       connection.write(`+OK\r\n`);
     } else if (intr == "exec") {
-      exec_hanlder(command, connection, taskqueue, multi);
+      exec_hanlder(data, connection, taskqueue, multi);
     } else if (intr == "discard") {
-      discard_handler(command, connection, taskqueue, multi);
+      discard_handler(data, connection, taskqueue, multi);
     } else {
       connection.write("-ERR unknown command\r\n");
     }

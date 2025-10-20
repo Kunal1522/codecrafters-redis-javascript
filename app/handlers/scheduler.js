@@ -1,3 +1,4 @@
+import net from "net";
 import {
   redisKeyValuePair,
   redisList,
@@ -15,93 +16,16 @@ import {
 import { xadd_handler, x_range_handler, xread_handler } from "./streams.js";
 import { expiry_checker } from "../utils/utils.js";
 
-function multi_handler(command, connection, taskqueue) {
+function multi_handler(buffer_data, connection, taskqueue) {
   let task = {
     connection: connection,
-    command: command,
+    buffer_data: buffer_data,
   };
   taskqueue.push(task);
   connection.write("+QUEUED\r\n");
 }
-function executeCommand(command, connection) {
-  const intr = command[2]?.toLowerCase();
 
-  try {
-    if (intr === "set") {
-      redisKeyValuePair.set(command[4], command[6]);
-      if (command.length > 8) {
-        expiry_checker(command, redisKeyValuePair);
-      }
-      return `+OK\r\n`;
-    } else if (intr === "get") {
-      const value = redisKeyValuePair.get(command[4]);
-      if (value === "ille_pille_kille" || value === undefined) {
-        return `$-1\r\n`;
-      } else {
-        return `$${value.length}\r\n${value}\r\n`;
-      }
-    } else if (intr === "incr") {
-      const key = command[4];
-      const current = parseInt(redisKeyValuePair.get(key) || 0);
-      const newValue = current + 1;
-      redisKeyValuePair.set(key, newValue.toString());
-      return `:${newValue}\r\n`;
-    } else if (intr === "lpush") {
-      const key = command[4];
-      if (!redisList[key]) {
-        redisList[key] = [];
-      }
-      for (let i = 6; i < command.length; i += 2) {
-        if (command[i]) redisList[key].unshift(command[i]);
-      }
-      return `:${redisList[key].length}\r\n`;
-    } else if (intr === "rpush") {
-      rpush_handler(command, redisList, blpopConnections, connection);
-      return ``;
-    } else if (intr === "lrange") {
-      const key = command[4];
-      const start = parseInt(command[6]);
-      const stop = parseInt(command[8]);
-      const list = redisList[key] || [];
-      const range = list.slice(start, stop + 1);
-      let response = `*${range.length}\r\n`;
-      range.forEach((item) => {
-        response += `$${item.length}\r\n${item}\r\n`;
-      });
-      return response;
-    } else if (intr === "llen") {
-      const key = command[4];
-      const len = redisList[key]?.length ?? 0;
-      return `:${len}\r\n`;
-    } else if (intr === "lpop") {
-      const key = command[4];
-      const list = redisList[key];
-      if (!list || list.length === 0) {
-        return `$-1\r\n`;
-      }
-      const value = list.shift();
-      return `$${value.length}\r\n${value}\r\n`;
-    } else if (intr === "type") {
-      const key = command[4];
-      if (redisStream[key]) {
-        return `+stream\r\n`;
-      } else if (redisList[key]) {
-        return `+list\r\n`;
-      } else if (redisKeyValuePair.has(key)) {
-        return `+string\r\n`;
-      } else {
-        return `+none\r\n`;
-      }
-    } else {
-      return `-ERR unknown command\r\n`;
-    }
-  } catch (error) {
-    console.error("Error executing command:", error);
-    return `-ERR ${error.message}\r\n`;
-  }
-}
-
-function exec_hanlder(command, connection, taskqueue, multi) {
+function exec_hanlder(buffer_data, connection, taskqueue, multi) {
   if (!multi.active) {
     connection.write(`-ERR EXEC without MULTI\r\n`);
     return;
@@ -114,24 +38,175 @@ function exec_hanlder(command, connection, taskqueue, multi) {
   }
 
   const results = [];
+  let commandsToExecute = [];
+  
+  // Collect all commands from queue
   while (!taskqueue.empty()) {
     const task = taskqueue.pop();
-    const { connection: taskConnection, command: taskCommand } = task;
-
-    const result = executeCommand(taskCommand, connection);
-    results.push(result);
+    commandsToExecute.push(task.buffer_data);
   }
 
-  connection.write(`*${results.length}\r\n`);
-  results.forEach((result) => {
-    if (result) connection.write(result);
+  const clientConnection = net.createConnection({ port: 6379, host: "127.0.0.1" }, () => {
+    console.log("Exec handler connected to Redis server on port 6379");
+    sendNextCommand();
   });
 
-  multi.active = false;
-  console.log("is_multi", multi.active);
+  let commandIndex = 0;
+  let responseBuffer = "";
+
+  function sendNextCommand() {
+    if (commandIndex < commandsToExecute.length) {
+      const buffer_data = commandsToExecute[commandIndex];
+      console.log(`Sending command ${commandIndex + 1}/${commandsToExecute.length}`);
+      
+      // Send the command
+      if (typeof buffer_data === "string") {
+        clientConnection.write(Buffer.from(buffer_data, "utf-8"));
+      } else {
+        clientConnection.write(buffer_data);
+      }
+    } else {
+      // All commands sent, close connection when all responses received
+      clientConnection.end();
+    }
+  }
+
+  clientConnection.on("data", (data) => {
+    responseBuffer += data.toString();
+    
+    // Try to parse one complete response
+    const response = parseOneResponse(responseBuffer);
+    
+    if (response !== null) {
+      // We got a complete response
+      results.push(response.data);
+      responseBuffer = response.remaining;
+      commandIndex++;
+      
+      // Send the next command
+      sendNextCommand();
+    }
+  });
+
+  clientConnection.on("end", () => {
+    // Send all collected results back to the original connection
+    connection.write(`*${results.length}\r\n`);
+    results.forEach((result) => {
+      connection.write(result);
+    });
+    
+    multi.active = false;
+    console.log("is_multi", multi.active);
+  });
+
+  clientConnection.on("error", (error) => {
+    console.error("Error connecting to Redis server:", error);
+    connection.write(`-ERR ${error.message}\r\n`);
+    multi.active = false;
+  });
 }
 
-function discard_handler(command, connection, taskqueue, multi) {
+// Helper function to parse Redis protocol responses
+function parseResponses(buffer) {
+  const responses = [];
+  let remaining = buffer;
+  let count = 0;
+
+  while (remaining.length > 0) {
+    const response = parseOneResponse(remaining);
+    
+    if (response === null) {
+      // Incomplete response, wait for more data
+      break;
+    }
+    
+    responses.push(response.data);
+    remaining = response.remaining;
+    count++;
+  }
+
+  return { data: responses, count: count, remaining: remaining };
+}
+
+// Helper function to parse a single Redis protocol response
+function parseOneResponse(buffer) {
+  if (buffer.length === 0) return null;
+
+  const firstChar = buffer[0];
+  const crlfIndex = buffer.indexOf("\r\n");
+
+  if (crlfIndex === -1) return null; // Incomplete response
+
+  if (firstChar === "+") {
+    // Simple string: +OK\r\n
+    const response = buffer.substring(0, crlfIndex + 2);
+    return { data: response, remaining: buffer.substring(crlfIndex + 2) };
+  } else if (firstChar === "-") {
+    // Error: -Error message\r\n
+    const response = buffer.substring(0, crlfIndex + 2);
+    return { data: response, remaining: buffer.substring(crlfIndex + 2) };
+  } else if (firstChar === ":") {
+    // Integer: :123\r\n
+    const response = buffer.substring(0, crlfIndex + 2);
+    return { data: response, remaining: buffer.substring(crlfIndex + 2) };
+  } else if (firstChar === "$") {
+    // Bulk string: $6\r\nfoobar\r\n or $-1\r\n (null)
+    const lengthStr = buffer.substring(1, crlfIndex);
+    const length = parseInt(lengthStr);
+
+    if (length === -1) {
+      // Null bulk string
+      const response = buffer.substring(0, crlfIndex + 2);
+      return { data: response, remaining: buffer.substring(crlfIndex + 2) };
+    }
+
+    const totalLength = crlfIndex + 2 + length + 2; // $6\r\nfoobar\r\n
+    if (buffer.length < totalLength) return null; // Incomplete
+
+    const response = buffer.substring(0, totalLength);
+    return { data: response, remaining: buffer.substring(totalLength) };
+  } else if (firstChar === "*") {
+    // Array: *2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n or *0\r\n (empty)
+    const lengthStr = buffer.substring(1, crlfIndex);
+    const arrayLength = parseInt(lengthStr);
+
+    if (arrayLength === 0) {
+      // Empty array
+      const response = buffer.substring(0, crlfIndex + 2);
+      return { data: response, remaining: buffer.substring(crlfIndex + 2) };
+    }
+
+    if (arrayLength === -1) {
+      // Null array
+      const response = buffer.substring(0, crlfIndex + 2);
+      return { data: response, remaining: buffer.substring(crlfIndex + 2) };
+    }
+
+    // Try to parse array elements
+    let pos = crlfIndex + 2;
+    let elementsParsed = 0;
+
+    for (let i = 0; i < arrayLength; i++) {
+      const remainingBuffer = buffer.substring(pos);
+      const elementResponse = parseOneResponse(remainingBuffer);
+
+      if (elementResponse === null) {
+        // Incomplete array
+        return null;
+      }
+
+      pos += remainingBuffer.length - elementResponse.remaining.length;
+      elementsParsed++;
+    }
+
+    const response = buffer.substring(0, pos);
+    return { data: response, remaining: buffer.substring(pos) };
+  }
+
+  return null; // Unknown format
+}
+
+function discard_handler(buffer_data, connection, taskqueue, multi) {
    if (!multi.active) {
     connection.write(`-ERR DISCARD without MULTI\r\n`);
     return;

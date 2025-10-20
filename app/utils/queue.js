@@ -23,4 +23,3 @@ class MyQueue {
     }
 }
 export {MyQueue};
-
