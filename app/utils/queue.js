@@ -1,4 +1,3 @@
-
 class MyQueue {
     constructor() {
         this.s1 = [];
@@ -23,6 +22,5 @@ class MyQueue {
         return this.s1.length === 0;
     }
 }
-
 export {MyQueue};
 

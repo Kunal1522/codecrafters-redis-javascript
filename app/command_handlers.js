@@ -125,10 +125,8 @@ function x_range_handler(startkey,endkey,command, redis_stream, connection) {
   if (!redis_stream[streamKey]) {
     redis_stream[streamKey] = [];
   }
-
   const stream = redis_stream[streamKey];
   const [startMs, startSequence] = startkey.split("-");
-
   let [endMs, endSequence] = endkey.split("-");
   if (endkey_copy == "+") {
     console.log(stream.slice(-1)[0]);
