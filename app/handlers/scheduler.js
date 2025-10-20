@@ -142,4 +142,4 @@ function discard_handler(command, connection, taskqueue, multi) {
   connection.write("+OK\r\n");
   multi.active=false;
 }
-export { multi_handler, exec_hanlder };
+export { multi_handler, exec_hanlder,discard_handler };

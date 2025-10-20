@@ -20,16 +20,20 @@ import {
   xread_handler,
 } from "./handlers/streams.js";
 import { MyQueue } from "./utils/queue.js";
-import { multi_handler,exec_hanlder } from "./handlers/scheduler.js";
+import {
+  multi_handler,
+  exec_hanlder,
+  discard_handler,
+} from "./handlers/scheduler.js";
 console.log("Logs from your program will appear here!");
 const server = net.createServer((connection) => {
   let taskqueue = new MyQueue();
-  let multi={"active":false};;
+  let multi = { active: false };
   connection.on("data", (data) => {
     const command = data.toString().split("\r\n");
     const intr = command[2]?.toLowerCase();
     console.log(command);
-    if (multi.active && intr!="exec") {
+    if (multi.active && intr != "exec" && intr != "discard") {
       multi_handler(command, connection, taskqueue);
     } else if (intr === "ping") {
       connection.write(`+PONG\r\n`);
@@ -92,7 +96,9 @@ const server = net.createServer((connection) => {
       multi.active = true;
       connection.write(`+OK\r\n`);
     } else if (intr == "exec") {
-        exec_hanlder(command,connection,taskqueue,multi);
+      exec_hanlder(command, connection, taskqueue, multi);
+    } else if (intr == "discard") {
+      discard_handler(command, connection, taskqueue, multi);
     } else {
       connection.write("-ERR unknown command\r\n");
     }
