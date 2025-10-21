@@ -2,7 +2,7 @@ import net from "net";
 import { serverConfig } from "../config.js";
 console.log("server configuration", serverConfig);
 function createMasterConnection() {
-  const slave_connection = net.createConnection(
+  const connection = net.createConnection(
     { port: serverConfig.master_port, host: "127.0.0.1" },
     () => {
       console.log("connected to master");
