@@ -25,6 +25,7 @@ import {
   exec_hanlder,
   discard_handler,
 } from "./handlers/scheduler.js";
+import {port} from "./config.js";
 console.log("Logs from your program will appear here!");
 const server = net.createServer((connection) => {
   let taskqueue = new MyQueue();
@@ -105,4 +106,6 @@ const server = net.createServer((connection) => {
   });
 });
 
-server.listen(6379, "127.0.0.1");
+server.listen(port, "127.0.0.1", () => {
+  console.log(`server running on ${port}`);
+});

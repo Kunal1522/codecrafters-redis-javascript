@@ -15,6 +15,7 @@ import {
 } from "./lists.js";
 import { xadd_handler, x_range_handler, xread_handler } from "./streams.js";
 import { expiry_checker } from "../utils/utils.js";
+import { port } from "../config.js";
 
 function multi_handler(buffer_data, connection, taskqueue) {
   let task = {
@@ -46,8 +47,8 @@ function exec_hanlder(buffer_data, connection, taskqueue, multi) {
     commandsToExecute.push(task.buffer_data);
   }
 
-  const clientConnection = net.createConnection({ port: 6379, host: "127.0.0.1" }, () => {
-    console.log("Exec handler connected to Redis server on port 6379");
+  const clientConnection = net.createConnection({ port: port, host: "127.0.0.1" }, () => {
+    console.log(`Exec handler connected to Redis server on port ${port}`);
     sendNextCommand();
   });
 
@@ -106,7 +107,6 @@ function exec_hanlder(buffer_data, connection, taskqueue, multi) {
   });
 }
 
-// Helper function to parse Redis protocol responses
 function parseResponses(buffer) {
   const responses = [];
   let remaining = buffer;
@@ -116,7 +116,6 @@ function parseResponses(buffer) {
     const response = parseOneResponse(remaining);
     
     if (response === null) {
-      // Incomplete response, wait for more data
       break;
     }
     
@@ -128,61 +127,59 @@ function parseResponses(buffer) {
   return { data: responses, count: count, remaining: remaining };
 }
 
-// Helper function to parse a single Redis protocol response
+
 function parseOneResponse(buffer) {
   if (buffer.length === 0) return null;
-
   const firstChar = buffer[0];
   const crlfIndex = buffer.indexOf("\r\n");
 
-  if (crlfIndex === -1) return null; // Incomplete response
+  if (crlfIndex === -1) return null;
 
   if (firstChar === "+") {
-    // Simple string: +OK\r\n
+
     const response = buffer.substring(0, crlfIndex + 2);
     return { data: response, remaining: buffer.substring(crlfIndex + 2) };
   } else if (firstChar === "-") {
-    // Error: -Error message\r\n
+
     const response = buffer.substring(0, crlfIndex + 2);
     return { data: response, remaining: buffer.substring(crlfIndex + 2) };
   } else if (firstChar === ":") {
-    // Integer: :123\r\n
+
     const response = buffer.substring(0, crlfIndex + 2);
     return { data: response, remaining: buffer.substring(crlfIndex + 2) };
   } else if (firstChar === "$") {
-    // Bulk string: $6\r\nfoobar\r\n or $-1\r\n (null)
+
     const lengthStr = buffer.substring(1, crlfIndex);
     const length = parseInt(lengthStr);
 
     if (length === -1) {
-      // Null bulk string
+
       const response = buffer.substring(0, crlfIndex + 2);
       return { data: response, remaining: buffer.substring(crlfIndex + 2) };
     }
 
-    const totalLength = crlfIndex + 2 + length + 2; // $6\r\nfoobar\r\n
-    if (buffer.length < totalLength) return null; // Incomplete
+    const totalLength = crlfIndex + 2 + length + 2;
+    if (buffer.length < totalLength) return null;
 
     const response = buffer.substring(0, totalLength);
     return { data: response, remaining: buffer.substring(totalLength) };
   } else if (firstChar === "*") {
-    // Array: *2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n or *0\r\n (empty)
     const lengthStr = buffer.substring(1, crlfIndex);
     const arrayLength = parseInt(lengthStr);
 
     if (arrayLength === 0) {
-      // Empty array
+   
       const response = buffer.substring(0, crlfIndex + 2);
       return { data: response, remaining: buffer.substring(crlfIndex + 2) };
     }
 
     if (arrayLength === -1) {
-      // Null array
+ 
       const response = buffer.substring(0, crlfIndex + 2);
       return { data: response, remaining: buffer.substring(crlfIndex + 2) };
     }
 
-    // Try to parse array elements
+ 
     let pos = crlfIndex + 2;
     let elementsParsed = 0;
 
@@ -203,7 +200,7 @@ function parseOneResponse(buffer) {
     return { data: response, remaining: buffer.substring(pos) };
   }
 
-  return null; // Unknown format
+  return null; 
 }
 
 function discard_handler(buffer_data, connection, taskqueue, multi) {
