@@ -29,20 +29,26 @@ import {
 import { createMasterConnection } from "./handlers/master_connector.js";
 import { serverConfig } from "./config.js";
 console.log("Logs from your program will appear here!");
-if (serverConfig.master_host !== undefined && serverConfig.master_port !== undefined) {
-  console.log(`Replica mode: Connecting to master at ${serverConfig.master_host}:${serverConfig.master_port}`);
+if (
+  serverConfig.master_host !== undefined &&
+  serverConfig.master_port !== undefined
+) {
+  console.log(
+    `Replica mode: Connecting to master at ${serverConfig.master_host}:${serverConfig.master_port}`
+  );
   createMasterConnection();
 }
 
 const server = net.createServer((connection) => {
   let taskqueue = new MyQueue();
   let multi = { active: false };
-  connection.write(`+OK\r\n`);
   connection.on("data", (data) => {
     const command = data.toString().split("\r\n");
     const intr = command[2]?.toLowerCase();
     console.log(command);
-    if (multi.active && intr != "exec" && intr != "discard") {
+    if (intr == "replconf") {
+      connection.write(`+OK\r\n`);
+    } else if (multi.active && intr != "exec" && intr != "discard") {
       multi_handler(data, connection, taskqueue);
     } else if (intr === "ping") {
       connection.write(`+PONG\r\n`);
