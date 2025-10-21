@@ -6,4 +6,4 @@ const portIndex = args.indexOf("--port");
 if (portIndex !== -1 && args[portIndex + 1]) {
   port = parseInt(args[portIndex + 1], 10);
 }
-export default { port };
+export  { port };
