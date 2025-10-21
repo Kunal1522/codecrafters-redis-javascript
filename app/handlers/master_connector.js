@@ -19,7 +19,7 @@ function createMasterConnection() {
       }, 100);
       setTimeout(() => {
         connection.write(`*3\r\n$5\r\nPSYNC\r\n$1\r\n?\r\n$2\r\n-1\r\n`);
-      }, 100);
+      }, 1000);
     }
   );
   connection.on("data", (data) => {
