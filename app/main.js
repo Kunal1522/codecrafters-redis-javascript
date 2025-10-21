@@ -15,10 +15,10 @@ import {
   incr_handler,
 } from "./handlers/lists.js";
 import {
+  generateStreamId,
   xadd_handler,
   x_range_handler,
   xread_handler,
-  b,
 } from "./handlers/streams.js";
 import { MyQueue } from "./utils/queue.js";
 import {
