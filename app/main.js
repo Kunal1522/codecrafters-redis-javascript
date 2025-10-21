@@ -29,8 +29,6 @@ import {
 import { createMasterConnection } from "./handlers/master_connector.js";
 import { serverConfig } from "./config.js";
 console.log("Logs from your program will appear here!");
-
-
 if (serverConfig.master_host !== undefined && serverConfig.master_port !== undefined) {
   console.log(`Replica mode: Connecting to master at ${serverConfig.master_host}:${serverConfig.master_port}`);
   createMasterConnection();

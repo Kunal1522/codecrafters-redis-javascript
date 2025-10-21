@@ -7,8 +7,13 @@ function createMasterConnection() {
     () => {
       console.log("connected to master");
       connection.write(`*1\r\n$4\r\nPING\r\n`);
+      connection.write(`3\r\n$8\r\nREPLCONF\r\n$14\r\nlistening-port\r\n$4\r\n${serverConfig.port}\r\n`);
+      connection.write(`*3\r\n$8\r\nREPLCONF\r\n$4\r\ncapa\r\n$6\r\npsync2\r\n`);
     }
   );
+  connection.on("data",(data)=>{
+    console.log(data);
+  })
   return connection;
 }
 
