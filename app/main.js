@@ -49,7 +49,7 @@ const server = net.createServer((connection) => {
       connection.write(`+OK\r\n`);
     } else if(intr=="psync" && serverConfig.role=='master')
     {
-       connection.write(`+FULLRESYNC\r\n${serverConfig.master_replid}\r\n0\r\n`);
+       connection.write(`+FULLRESYNC ${serverConfig.master_replid} 0\r\n`);
     }
     else if (multi.active && intr != "exec" && intr != "discard") {
       multi_handler(data, connection, taskqueue);
