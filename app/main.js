@@ -102,11 +102,9 @@ const server = net.createServer((connection) => {
     } else if (intr == "discard") {
       discard_handler(data, connection, taskqueue, multi);
     } else if (intr == "info") {
-      let tmp_res = "role" + ":" + serverConfig.role;
-      connection.write(`$${tmp_res.length}\r\n${tmp_res}\r\n`);
-      tmp_res = "master_replid" + ":" + serverConfig.master_replid;
-      connection.write(`$${tmp_res.length}\r\n${tmp_res}\r\n`);
-      tmp_res = "master_repl_offset" + ":" + serverConfig.master_repl_offset;
+      let tmp_res = "role" + ":" + serverConfig.role+'\r\n';
+      tmp_res += "master_replid" + ":" + serverConfig.master_replid+'\r\n';
+      tmp_res += "master_repl_offset" + ":" + serverConfig.master_repl_offset;
       connection.write(`$${tmp_res.length}\r\n${tmp_res}\r\n`);
     } else {
       connection.write("-ERR unknown command\r\n");
