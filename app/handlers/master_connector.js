@@ -29,8 +29,5 @@ function createMasterConnection() {
 //first the tester in codecrafters requests the slave connection but the issue is i can't put the 
 // slave connection inside the server connection in main.js because the tester expects the slave connection before even connecting to my server 
 //so my trick is to actually implement the slave connection using new socket who pretends that it is replica and sends request but the issue is when master(tester here ) sends data it sends to the port that i defined in main.js ..... so i am using that connection obj to send any data back ....
-function master_handler(connection)
-{
-     connection.write()
-}
-export { createMasterConnection,master_handler};
+
+export { createMasterConnection};
