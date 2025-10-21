@@ -26,11 +26,14 @@ import {
   exec_hanlder,
   discard_handler,
 } from "./handlers/scheduler.js";
+import { createMasterConnection } from "./handlers/master_connector.js";
 import { serverConfig } from "./config.js";
 console.log("Logs from your program will appear here!");
 const server = net.createServer((connection) => {
   let taskqueue = new MyQueue();
   let multi = { active: false };
+  if (serverConfig.master_host!==undefined && serverConfig.master_port!==undefined)
+    createMasterConnection();
   connection.on("data", (data) => {
     const command = data.toString().split("\r\n");
     const intr = command[2]?.toLowerCase();
@@ -102,8 +105,8 @@ const server = net.createServer((connection) => {
     } else if (intr == "discard") {
       discard_handler(data, connection, taskqueue, multi);
     } else if (intr == "info") {
-      let tmp_res = "role" + ":" + serverConfig.role+'\r\n';
-      tmp_res += "master_replid" + ":" + serverConfig.master_replid+'\r\n';
+      let tmp_res = "role" + ":" + serverConfig.role + "\r\n";
+      tmp_res += "master_replid" + ":" + serverConfig.master_replid + "\r\n";
       tmp_res += "master_repl_offset" + ":" + serverConfig.master_repl_offset;
       connection.write(`$${tmp_res.length}\r\n${tmp_res}\r\n`);
     } else {

@@ -46,7 +46,6 @@ function exec_hanlder(buffer_data, connection, taskqueue, multi) {
     const task = taskqueue.pop();
     commandsToExecute.push(task.buffer_data);
   }
-
   const clientConnection = net.createConnection({ port: serverConfig.port, host: "127.0.0.1" }, () => {
     console.log(`Exec handler connected to Redis server on port ${serverConfig.port}`);
     sendNextCommand();
