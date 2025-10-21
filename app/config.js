@@ -1,12 +1,9 @@
+
 let port = 6379;
+
 const args = process.argv;
-
-const portIndex = args.indexOf('--port');
+const portIndex = args.indexOf("--port");
 if (portIndex !== -1 && args[portIndex + 1]) {
-  port = parseInt(args[portIndex], 10);
+  port = parseInt(args[portIndex + 1], 10);
 }
-console.log(port);
-export {port};
-
-
-
+export default { port };
