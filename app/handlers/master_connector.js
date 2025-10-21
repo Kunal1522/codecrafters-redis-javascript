@@ -24,6 +24,7 @@ function createMasterConnection() {
   );
   connection.on("data", (data) => {
     console.log(data);
+    connection.write(`+OK\r\n`);
   });
   return connection;
 }
