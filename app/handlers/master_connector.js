@@ -7,13 +7,14 @@ function createMasterConnection() {
     () => {
       console.log("connected to master");
       connection.write(`*1\r\n$4\r\nPING\r\n`);
-
-      connection.write(
-        "*3\r\n$8\r\nREPLCONF\r\n$14\r\nlistening-port\r\n$4\r\n6380\r\n"
-      );
-      connection.write(
-        "*3\r\n$8\r\nREPLCONF\r\n$4\r\ncapa\r\n$6\r\npsync2\r\n"
-      );
+      setTimeout(() => {
+        connection.write(
+          "*3\r\n$8\r\nREPLCONF\r\n$14\r\nlistening-port\r\n$4\r\n6380\r\n"
+        );
+      }, 100);
+      setTimeout(() => {
+        connection.write("*3\r\n$8\r\nREPLCONF\r\n$4\r\ncapa\r\n$6\r\npsync2\r\n");
+      }, 100);
     }
   );
   connection.on("data", (data) => {
