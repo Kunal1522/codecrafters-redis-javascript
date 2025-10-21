@@ -38,7 +38,6 @@ if (
   );
   createMasterConnection();
 }
-
 const server = net.createServer((connection) => {
   let taskqueue = new MyQueue();
   let multi = { active: false };
@@ -48,7 +47,11 @@ const server = net.createServer((connection) => {
     console.log(command);
     if (intr == "replconf") {
       connection.write(`+OK\r\n`);
-    } else if (multi.active && intr != "exec" && intr != "discard") {
+    } else if(intr=="psync" && serverConfig.role=='master')
+    {
+       connection.write(`+FULLRESYNC\r\n${serverConfig.master_replid}\r\n0\r\n`);
+    }
+    else if (multi.active && intr != "exec" && intr != "discard") {
       multi_handler(data, connection, taskqueue);
     } else if (intr === "ping") {
       connection.write(`+PONG\r\n`);
