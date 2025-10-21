@@ -18,6 +18,7 @@ import {
   xadd_handler,
   x_range_handler,
   xread_handler,
+  b,
 } from "./handlers/streams.js";
 import { MyQueue } from "./utils/queue.js";
 import {
@@ -25,7 +26,7 @@ import {
   exec_hanlder,
   discard_handler,
 } from "./handlers/scheduler.js";
-import { serverConfig} from "./config.js";
+import { serverConfig } from "./config.js";
 console.log("Logs from your program will appear here!");
 const server = net.createServer((connection) => {
   let taskqueue = new MyQueue();
@@ -101,15 +102,17 @@ const server = net.createServer((connection) => {
     } else if (intr == "discard") {
       discard_handler(data, connection, taskqueue, multi);
     } else if (intr == "info") {
-      const res='role'+':'+serverConfig.role;
-      connection.write(`$${res.length}\r\n${res}\r\n`);
-      
+      let tmp_res = "role" + ":" + serverConfig.role;
+      connection.write(`$${tmp_res.length}\r\n${tmp_res}\r\n`);
+      tmp_res = "master_replid" + ":" + serverConfig.master_replid;
+      connection.write(`$${tmp_res.length}\r\n${tmp_res}\r\n`);
+      tmp_res = "master_repl_offset" + ":" + serverConfig.master_repl_offset;
+      connection.write(`$${tmp_res.length}\r\n${tmp_res}\r\n`);
     } else {
       connection.write("-ERR unknown command\r\n");
     }
   });
 });
-
 server.listen(serverConfig.port, "127.0.0.1", () => {
   console.log(`server running on ${serverConfig.port}`);
 });
