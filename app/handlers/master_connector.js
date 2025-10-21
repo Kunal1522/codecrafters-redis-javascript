@@ -6,7 +6,7 @@ function createMasterConnection() {
     { port: serverConfig.master_port, host: "127.0.0.1" },
     () => {
       console.log("connected to master");
-      slave_connection.write(`*1\r\n$4\r\nPING\r\n`);
+      connection.write(`*1\r\n$4\r\nPING\r\n`);
       setTimeout(() => {
         connection.write(
           "*3\r\n$8\r\nREPLCONF\r\n$14\r\nlistening-port\r\n$4\r\n6380\r\n"
