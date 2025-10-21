@@ -25,7 +25,7 @@ import {
   exec_hanlder,
   discard_handler,
 } from "./handlers/scheduler.js";
-import {port} from "./config.js";
+import { port } from "./config.js";
 console.log("Logs from your program will appear here!");
 const server = net.createServer((connection) => {
   let taskqueue = new MyQueue();
@@ -100,6 +100,8 @@ const server = net.createServer((connection) => {
       exec_hanlder(data, connection, taskqueue, multi);
     } else if (intr == "discard") {
       discard_handler(data, connection, taskqueue, multi);
+    } else if (intr == "info") {
+      connection.write("$11\r\nrole:master\r\n");
     } else {
       connection.write("-ERR unknown command\r\n");
     }
