@@ -37,6 +37,7 @@ if (serverConfig.master_host !== undefined && serverConfig.master_port !== undef
 const server = net.createServer((connection) => {
   let taskqueue = new MyQueue();
   let multi = { active: false };
+  connection.write(`+OK\r\n`);
   connection.on("data", (data) => {
     const command = data.toString().split("\r\n");
     const intr = command[2]?.toLowerCase();
