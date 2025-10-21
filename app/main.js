@@ -25,7 +25,7 @@ import {
   exec_hanlder,
   discard_handler,
 } from "./handlers/scheduler.js";
-import { port } from "./config.js";
+import { serverConfig} from "./config.js";
 console.log("Logs from your program will appear here!");
 const server = net.createServer((connection) => {
   let taskqueue = new MyQueue();
@@ -101,13 +101,15 @@ const server = net.createServer((connection) => {
     } else if (intr == "discard") {
       discard_handler(data, connection, taskqueue, multi);
     } else if (intr == "info") {
-      connection.write("$11\r\nrole:master\r\n");
+      const res='role'+':'+serverConfig.role;
+      connection.write(`$${res.length}\r\n${res}\r\n`);
+      
     } else {
       connection.write("-ERR unknown command\r\n");
     }
   });
 });
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`server running on ${port}`);
+server.listen(serverConfig.port, "127.0.0.1", () => {
+  console.log(`server running on ${serverConfig.port}`);
 });

@@ -15,7 +15,7 @@ import {
 } from "./lists.js";
 import { xadd_handler, x_range_handler, xread_handler } from "./streams.js";
 import { expiry_checker } from "../utils/utils.js";
-import { port } from "../config.js";
+import { serverConfig } from "../config.js";
 
 function multi_handler(buffer_data, connection, taskqueue) {
   let task = {
@@ -47,8 +47,8 @@ function exec_hanlder(buffer_data, connection, taskqueue, multi) {
     commandsToExecute.push(task.buffer_data);
   }
 
-  const clientConnection = net.createConnection({ port: port, host: "127.0.0.1" }, () => {
-    console.log(`Exec handler connected to Redis server on port ${port}`);
+  const clientConnection = net.createConnection({ port: serverConfig.port, host: "127.0.0.1" }, () => {
+    console.log(`Exec handler connected to Redis server on port ${serverConfig.port}`);
     sendNextCommand();
   });
 
