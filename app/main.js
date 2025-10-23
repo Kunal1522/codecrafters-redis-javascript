@@ -27,6 +27,7 @@ import {
   discard_handler,
 } from "./handlers/scheduler.js";
 import { createMasterConnection } from "./handlers/master_connector.js";
+import { master_handler } from "./handlers/master_handler.js";
 import { serverConfig } from "./config.js";
 console.log("Logs from your program will appear here!");
 if (
@@ -47,11 +48,9 @@ const server = net.createServer((connection) => {
     console.log(command);
     if (intr == "replconf") {
       connection.write(`+OK\r\n`);
-    } else if(intr=="psync" && serverConfig.role=='master')
-    {
-       connection.write(`+FULLRESYNC ${serverConfig.master_replid} 0\r\n`);
-    }
-    else if (multi.active && intr != "exec" && intr != "discard") {
+    } else if (intr == "psync" && serverConfig.role == "master") {
+      master_handler(command, connection);
+    } else if (multi.active && intr != "exec" && intr != "discard") {
       multi_handler(data, connection, taskqueue);
     } else if (intr === "ping") {
       connection.write(`+PONG\r\n`);
