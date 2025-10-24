@@ -5,14 +5,18 @@ console.log("server configuration", serverConfig);
 
 function setupReplicaProxy() {
   // Create a local bridge (to forward data from master → client)
-  //this connection i am creating betwene the two sockets running on replica // one which does hanshake -----other which acts as //the reason being master will propagate to handshake one and this handshake will forward it to //client .so i don't need to refactor the client architeture ......i am lazy lazy
+  // This connection forwards commands from master to the replica's own server
   const replicaBridgeConnection = net.createConnection(
     { port: serverConfig.port, host: "127.0.0.1" },
     () => {
       console.log("Replica bridge connected to local server");
     }
   );
-
+  
+  replicaBridgeConnection.on("error", (err) => {
+    console.error("Replica bridge connection error:", err.message);
+  });
+  
   return replicaBridgeConnection; 
 }
 
@@ -42,12 +46,21 @@ function createMasterConnection() {
     }
   );
 
-
-  const replicaBridgeConnection = setupReplicaProxy();
-
-  connection.on("data", (data) => {
-    replicaBridgeConnection.write(data);
+  connection.on("error", (err) => {
+    console.error("Master connection error:", err.message);
   });
+
+  // Setup bridge connection after a delay to ensure local server is listening
+  let replicaBridgeConnection = null;
+  setTimeout(() => {
+    replicaBridgeConnection = setupReplicaProxy();
+    
+    connection.on("data", (data) => {
+      if (replicaBridgeConnection) {
+        replicaBridgeConnection.write(data);
+      }
+    });
+  }, 500);
 
   console.log("Allocated master-replica connection");
   serverConfig.master_replica_connection = connection;
