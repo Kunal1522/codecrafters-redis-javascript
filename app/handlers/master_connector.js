@@ -43,11 +43,11 @@ function createMasterConnection() {
   );
 
 
-  const replicaBridgeConnection = setupReplicaProxy();
+  // const replicaBridgeConnection = setupReplicaProxy();
 
-  connection.on("data", (data) => {
-    replicaBridgeConnection.write(data);
-  });
+  // connection.on("data", (data) => {
+  //   replicaBridgeConnection.write(data);
+  // });
 
   console.log("Allocated master-replica connection");
   serverConfig.master_replica_connection = connection;
