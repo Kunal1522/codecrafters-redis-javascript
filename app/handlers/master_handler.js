@@ -22,6 +22,7 @@ function master_handler(command, connection) {
 }
 function command_propogator(command)
 {
+    console.log(command);
     const intr=command[2]?.toUpperCase();
     console.log(intr);
     if(REPLICATABLE_COMMANDS.includes(intr) && serverConfig.role==="master")
