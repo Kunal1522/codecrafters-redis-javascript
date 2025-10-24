@@ -71,7 +71,7 @@ const server = net.createServer((connection) => {
         expiry_checker(command, redisKeyValuePair);
       }
           console.log("calling propagator");
-      command_propogator(command);
+      command_propogator(command,data);
       writeToConnection(
         connection,
         `+OK\r\n`,

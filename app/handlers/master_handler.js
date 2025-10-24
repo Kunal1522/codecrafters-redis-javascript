@@ -20,7 +20,7 @@ function master_handler(command, connection) {
     return;
   }
 }
-function command_propogator(command)
+function command_propogator(command,data)
 {
     console.log(command);
     const intr=command[2]?.toUpperCase();
@@ -30,7 +30,7 @@ function command_propogator(command)
            console.log(replicas_connected);
          for(const replica_connections of replicas_connected)
          {
-                replica_connections.write(command); 
+                replica_connections.write(data); 
          }
     }
 }
