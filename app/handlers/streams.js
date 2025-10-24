@@ -1,4 +1,5 @@
-import { streamSequenceMap, redisStream } from "../state/store.js";
+import { streamSequenceMap, redisStream, REPLICATABLE_COMMANDS } from "../state/store.js";
+import { writeToConnection } from "../utils/utils.js";
 
 function generateStreamId(rawId) {
   if (!rawId) return null;
@@ -19,7 +20,7 @@ function generateStreamId(rawId) {
   const fullId = `${timestamp}-${sequence}`;
   return fullId;
 }
-function xadd_handler(command, connection,blocked_streams) {
+function xadd_handler(command, connection, blocked_streams, serverConfig) {
   const streamKey = command[4];
   let entryId = command[6];
   entryId = generateStreamId(entryId);
@@ -65,7 +66,7 @@ function xadd_handler(command, connection,blocked_streams) {
     }
   }
   redisStream[streamKey].push(entry);
-  connection.write(`$${entryId.length}\r\n${entryId}\r\n`);
+  writeToConnection(connection, `$${entryId.length}\r\n${entryId}\r\n`, "xadd", serverConfig, REPLICATABLE_COMMANDS);
     
     // console.log("blocked_streams[streamKey].length",blocked_streams[streamKey].length);
   if (blocked_streams[streamKey] && blocked_streams[streamKey].length > 0) {
@@ -99,7 +100,6 @@ function x_range_handler(startkey, endkey, command, connection) {
   if (!redisStream[streamKey]) {
     redisStream[streamKey] = [];
   }
-
   const stream = redisStream[streamKey];
   const [startMs, startSequence] = startkey.split("-");
   let [endMs, endSequence] = endkey.split("-");
@@ -135,7 +135,6 @@ function x_range_handler(startkey, endkey, command, connection) {
         .flat();
       return [item.id, fields];
     });
-
   let response = `*${result.length}\r\n`;
   for (const [id, fields] of result) {
     response += `*2\r\n`;

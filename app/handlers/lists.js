@@ -1,3 +1,6 @@
+import { writeToConnection } from "../utils/utils.js";
+import { REPLICATABLE_COMMANDS } from "../state/store.js";
+
 function lrange_handler(command, redis_list, connection) {
   const key = command[4];
   let start = Number(command[6]);
@@ -32,7 +35,7 @@ function lrange_handler(command, redis_list, connection) {
   }
 }
 
-function lpop_handler(command, redis_list, connection) {
+function lpop_handler(command, redis_list, connection, serverConfig) {
   const key = command[4];
   if (command.length > 6) {
     const element_to_pop = command[6];
@@ -44,22 +47,24 @@ function lpop_handler(command, redis_list, connection) {
       }
       elements_remove.push(top_most);
     }
-    connection.write("*" + elements_remove.length + "\r\n");
+    writeToConnection(connection, "*" + elements_remove.length + "\r\n", "lpop", serverConfig, REPLICATABLE_COMMANDS);
     for (let i = 0; i < elements_remove.length; i++) {
-      connection.write(
-        "$" + elements_remove[i].length + "\r\n" + elements_remove[i] + "\r\n"
+      writeToConnection(connection,
+        "$" + elements_remove[i].length + "\r\n" + elements_remove[i] + "\r\n",
+        "lpop", serverConfig, REPLICATABLE_COMMANDS
       );
     }
   } else {
-    if (redis_list[key].length == 0) connection.write(`$-1\r\n`);
-    else {
+    if (redis_list[key].length == 0) {
+      writeToConnection(connection, `$-1\r\n`, "lpop", serverConfig, REPLICATABLE_COMMANDS);
+    } else {
       const top_most = redis_list[key].shift();
-      connection.write("$" + top_most.length + "\r\n" + top_most + "\r\n");
+      writeToConnection(connection, "$" + top_most.length + "\r\n" + top_most + "\r\n", "lpop", serverConfig, REPLICATABLE_COMMANDS);
     }
   }
 }
 
-function blop_handler(command, redis_list, blop_connections, connection) {
+function blop_handler(command, redis_list, blop_connections, connection, serverConfig) {
   const key = command[4];
   if (!blop_connections[key]) {
     blop_connections[key] = [];
@@ -73,17 +78,19 @@ function blop_handler(command, redis_list, blop_connections, connection) {
         redis_list[key] && redis_list[key].length > 0
           ? redis_list[key].shift()
           : null;
-      if (top_most == null) top_connection.write(`*-1\r\n`);
-      else {
-        top_connection.write(
-          `*2\r\n$${key.length}\r\n${key}\r\n$${top_most.length}\r\n${top_most}\r\n`
+      if (top_most == null) {
+        writeToConnection(top_connection, `*-1\r\n`, "blpop", serverConfig, REPLICATABLE_COMMANDS);
+      } else {
+        writeToConnection(top_connection,
+          `*2\r\n$${key.length}\r\n${key}\r\n$${top_most.length}\r\n${top_most}\r\n`,
+          "blpop", serverConfig, REPLICATABLE_COMMANDS
         );
       }
     }, timeout);
   }
 }
 
-function rpush_handler(command, redis_list, blop_connections, connection) {
+function rpush_handler(command, redis_list, blop_connections, connection, serverConfig) {
   const key = command[4];
   if (!redis_list[key]) {
     redis_list[key] = [];
@@ -91,7 +98,7 @@ function rpush_handler(command, redis_list, blop_connections, connection) {
   for (let i = 6; i < command.length; i += 2) {
     redis_list[key].push(command[i]);
   }
-  connection.write(":" + redis_list[key].length + "\r\n");
+  writeToConnection(connection, ":" + redis_list[key].length + "\r\n", "rpush", serverConfig, REPLICATABLE_COMMANDS);
   if (!blop_connections[key]) {
     blop_connections[key] = [];
   }
@@ -110,7 +117,7 @@ function rpush_handler(command, redis_list, blop_connections, connection) {
     }
   }
 }
-function incr_handler(command, redis_key_value, connection) {
+function incr_handler(command, redis_key_value, connection, serverConfig) {
   const key = command[4];
   console.log(typeof redis_key_value.get(key));
   if (redis_key_value.get(key) == undefined) {
@@ -123,7 +130,7 @@ function incr_handler(command, redis_key_value, connection) {
   const value = Number(redis_key_value.get(key));
   let newValue = Number(value) + 1;
   redis_key_value.set(key, String(newValue));
-  connection.write(`:${newValue}\r\n`);
+  writeToConnection(connection, `:${newValue}\r\n`, "incr", serverConfig, REPLICATABLE_COMMANDS);
 }
 
 

@@ -1,11 +1,12 @@
 import net from "net";
-import { expiry_checker } from "./utils/utils.js";
+import { expiry_checker, writeToConnection } from "./utils/utils.js";
 import {
   redisKeyValuePair,
   redisList,
   blpopConnections,
   redisStream,
   blocked_streams,
+  REPLICATABLE_COMMANDS,
 } from "./state/store.js";
 import {
   lrange_handler,
@@ -27,7 +28,10 @@ import {
   discard_handler,
 } from "./handlers/scheduler.js";
 import { createMasterConnection } from "./handlers/master_connector.js";
-import { master_handler } from "./handlers/master_handler.js";
+import {
+  master_handler,
+  command_propogator,
+} from "./handlers/master_handler.js";
 import { serverConfig } from "./config.js";
 console.log("Logs from your program will appear here!");
 if (
@@ -45,15 +49,22 @@ const server = net.createServer((connection) => {
   connection.on("data", (data) => {
     const command = data.toString().split("\r\n");
     const intr = command[2]?.toLowerCase();
+    const intru = command[2]?.toUpperCase();
+    if (serverConfig.role == "master" && REPLICATABLE_COMMANDS.includes(intru))
+    {
+      console.log("calling propagator");
+      command_propogator(intr);}
     console.log(command);
     if (intr == "replconf") {
       connection.write(`+OK\r\n`);
     } else if (intr == "psync" && serverConfig.role == "master") {
-      master_handler(command, connection);
+      master_handler(command, serverConfig.master_replica_connection);
     } else if (multi.active && intr != "exec" && intr != "discard") {
       multi_handler(data, connection, taskqueue);
     } else if (intr === "ping") {
       connection.write(`+PONG\r\n`);
+      if (serverConfig.role == "master")
+        serverConfig.master_replica_connection = connection;
     } else if (intr === "echo") {
       connection.write(command[3] + "\r\n" + command[4] + "\r\n");
     } else if (intr === "set") {
@@ -61,7 +72,13 @@ const server = net.createServer((connection) => {
       if (command.length > 8) {
         expiry_checker(command, redisKeyValuePair);
       }
-      connection.write(`+OK\r\n`);
+      writeToConnection(
+        connection,
+        `+OK\r\n`,
+        intr,
+        serverConfig,
+        REPLICATABLE_COMMANDS
+      );
     } else if (intr === "get") {
       const value = redisKeyValuePair.get(command[4]);
       if (value === "ille_pille_kille" || value === undefined) {
@@ -70,7 +87,13 @@ const server = net.createServer((connection) => {
         connection.write(`$${value.length}\r\n${value}\r\n`);
       }
     } else if (intr === "rpush") {
-      rpush_handler(command, redisList, blpopConnections, connection);
+      rpush_handler(
+        command,
+        redisList,
+        blpopConnections,
+        connection,
+        serverConfig
+      );
     } else if (intr === "lrange") {
       lrange_handler(command, redisList, connection);
     } else if (intr === "lpush") {
@@ -81,15 +104,27 @@ const server = net.createServer((connection) => {
       for (let i = 6; i < command.length; i += 2) {
         if (command[i]) redisList[key].unshift(command[i]);
       }
-      connection.write(`:${redisList[key].length}\r\n`);
+      writeToConnection(
+        connection,
+        `:${redisList[key].length}\r\n`,
+        intr,
+        serverConfig,
+        REPLICATABLE_COMMANDS
+      );
     } else if (intr === "llen") {
       const key = command[4];
       const len = redisList[key]?.length ?? 0;
       connection.write(`:${len}\r\n`);
     } else if (intr === "lpop") {
-      lpop_handler(command, redisList, connection);
+      lpop_handler(command, redisList, connection, serverConfig);
     } else if (intr === "blpop") {
-      blop_handler(command, redisList, blpopConnections, connection);
+      blop_handler(
+        command,
+        redisList,
+        blpopConnections,
+        connection,
+        serverConfig
+      );
     } else if (intr === "type") {
       const key = command[4];
       if (redisStream[key]) {
@@ -102,13 +137,13 @@ const server = net.createServer((connection) => {
         connection.write("+none\r\n");
       }
     } else if (intr === "xadd") {
-      xadd_handler(command, connection, blocked_streams);
+      xadd_handler(command, connection, blocked_streams, serverConfig);
     } else if (intr === "xrange") {
       x_range_handler(command[6], command[8], command, connection);
     } else if (intr === "xread") {
       xread_handler(command, connection, blocked_streams);
     } else if (intr == "incr") {
-      incr_handler(command, redisKeyValuePair, connection);
+      incr_handler(command, redisKeyValuePair, connection, serverConfig);
     } else if (intr == "multi") {
       multi.active = true;
       connection.write(`+OK\r\n`);

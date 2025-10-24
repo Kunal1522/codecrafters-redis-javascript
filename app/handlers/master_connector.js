@@ -1,11 +1,15 @@
 import net from "net";
 import { serverConfig } from "../config.js";
 console.log("server configuration", serverConfig);
+
+//here i become replica 
 function createMasterConnection() {
   const connection = net.createConnection(
     { port: serverConfig.master_port, host: "127.0.0.1" },
     () => {
-      console.log("connected to master");
+      console.log("connected to master"); 
+  
+      console.log("master-replica conencted",serverConfig.master_replica_connection);
       connection.write(`*1\r\n$4\r\nPING\r\n`);
       setTimeout(() => {
         connection.write(
@@ -22,12 +26,11 @@ function createMasterConnection() {
       }, 1000);
     }
   );
-  return connection;
+  // return connection;
+  console.log("allocated master replica");
+ serverConfig.master_replica_connection=connection;
+ 
 }
-//GAJNI HU MAI ..sb bhool jaata....
-//the problem is here we have the following config 
-//first the tester in codecrafters requests the slave connection but the issue is i can't put the 
-// slave connection inside the server connection in main.js because the tester expects the slave connection before even connecting to my server 
-//so my trick is to actually implement the slave connection using new socket who pretends that it is replica and sends request but the issue is when master(tester here ) sends data it sends to the port that i defined in main.js ..... so i am using that connection obj to send any data back ....
+
 
 export { createMasterConnection};

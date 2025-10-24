@@ -25,13 +25,11 @@ function multi_handler(buffer_data, connection, taskqueue) {
   taskqueue.push(task);
   connection.write("+QUEUED\r\n");
 }
-
 function exec_hanlder(buffer_data, connection, taskqueue, multi) {
   if (!multi.active) {
     connection.write(`-ERR EXEC without MULTI\r\n`);
     return;
   }
-
   if (taskqueue.empty()) {
     connection.write("*0\r\n");
     multi.active = false;
