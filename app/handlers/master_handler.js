@@ -23,9 +23,10 @@ function master_handler(command, connection) {
 function command_propogator(command)
 {
     const intr=command[2]?.toUpperCase();
-    console.log(replicas_connected);
+   
     if(REPLICATABLE_COMMANDS.includes(intr) && serverConfig.role==="master")
     {
+           console.log(replicas_connected);
          for(const replica_connections of replicas_connected)
          {
                 replica_connections.write(command); 
