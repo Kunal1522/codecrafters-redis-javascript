@@ -7,6 +7,7 @@ import {
   redisStream,
   blocked_streams,
   REPLICATABLE_COMMANDS,
+  replicas_connected,
 } from "./state/store.js";
 import {
   lrange_handler,
@@ -50,12 +51,6 @@ const server = net.createServer((connection) => {
     const command = data.toString().split("\r\n");
     const intr = command[2]?.toLowerCase();
     const intru = command[2]?.toUpperCase();
-    if (serverConfig.role == "master" && REPLICATABLE_COMMANDS.includes(intru))
-    {
-   
-    console.log(command);
-       console.log("calling propagator");
-      command_propogator(intr);}
     if (intr == "replconf") {
       connection.write(`+OK\r\n`);
     } else if (intr == "psync" && serverConfig.role == "master") {
@@ -65,7 +60,9 @@ const server = net.createServer((connection) => {
     } else if (intr === "ping") {
       connection.write(`+PONG\r\n`);
       if (serverConfig.role == "master")
-        serverConfig.master_replica_connection = connection;
+      {        serverConfig.master_replica_connection = connection;
+              replicas_connected.add(serverConfig.master_replica_connection);
+      }
     } else if (intr === "echo") {
       connection.write(command[3] + "\r\n" + command[4] + "\r\n");
     } else if (intr === "set") {
@@ -73,6 +70,8 @@ const server = net.createServer((connection) => {
       if (command.length > 8) {
         expiry_checker(command, redisKeyValuePair);
       }
+          console.log("calling propagator");
+      command_propogator(intr);
       writeToConnection(
         connection,
         `+OK\r\n`,
