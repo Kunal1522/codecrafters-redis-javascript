@@ -22,6 +22,7 @@ if (replicaIndex !== -1 && args[replicaIndex]) {
      const [hostname,port]=args[replicaIndex+1].split(' ');
      serverConfig.master_host=hostname;
      serverConfig.master_port=parseInt(port,10);
+     
   } 
 }
 export { serverConfig };
