@@ -60,7 +60,7 @@ function createMasterConnection() {
         replicaBridgeConnection.write(data);
       }
     });
-  }, 500);
+  }, 1000);
 
   console.log("Allocated master-replica connection");
   serverConfig.master_replica_connection = connection;
