@@ -52,9 +52,10 @@ const server = net.createServer((connection) => {
     const intru = command[2]?.toUpperCase();
     if (serverConfig.role == "master" && REPLICATABLE_COMMANDS.includes(intru))
     {
-      console.log("calling propagator");
-      command_propogator(intr);}
+   
     console.log(command);
+       console.log("calling propagator");
+      command_propogator(intr);}
     if (intr == "replconf") {
       connection.write(`+OK\r\n`);
     } else if (intr == "psync" && serverConfig.role == "master") {
