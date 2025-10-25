@@ -33,7 +33,6 @@ function parseMultipleCommands(data) {
     }
     const arrayLen = parseInt(header, 10);
     pos = lineEnd + 2;
-
     const parts = [];
     let valid = true;
     for (let i = 0; i < arrayLen; i++) {
@@ -59,35 +58,5 @@ function parseMultipleCommands(data) {
   return commands;
 }
 
-function getCommandByteSize(data) {
-  const dataStr = typeof data === 'string' ? data : data.toString();
-  let pos = 0;
-  
-  while (pos < dataStr.length && dataStr[pos] !== '*') pos++;
-  if (pos >= dataStr.length) return 0;
-  
-  const commandStart = pos;
-  let lineEnd = dataStr.indexOf('\r\n', pos);
-  if (lineEnd === -1) return 0;
-  
-  const arrayLength = parseInt(dataStr.substring(pos + 1, lineEnd));
-  pos = lineEnd + 2;
-  
-  for (let i = 0; i < arrayLength; i++) {
-    if (pos >= dataStr.length || dataStr[pos] !== '$') break;
-    
-    lineEnd = dataStr.indexOf('\r\n', pos);
-    if (lineEnd === -1) break;
-    
-    const bulkLength = parseInt(dataStr.substring(pos + 1, lineEnd));
-    pos = lineEnd + 2 + bulkLength;
-    
-    if (pos + 1 < dataStr.length && dataStr.substring(pos, pos + 2) === '\r\n') {
-      pos += 2;
-    }
-  }
-  
-  return pos - commandStart;
-}
 
-export { expiry_checker, writeToConnection, parseMultipleCommands, getCommandByteSize };
+export { expiry_checker, writeToConnection, parseMultipleCommands};

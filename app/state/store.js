@@ -5,7 +5,6 @@ const blpopConnections = {};
 const redisStream = {};
 const streamSequenceMap = new Map();
 const blocked_streams = {};
-
 const REPLICATABLE_COMMANDS = [
   'SET',
   'DEL',

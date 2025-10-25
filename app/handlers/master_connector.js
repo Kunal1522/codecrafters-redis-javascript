@@ -1,21 +1,16 @@
 import net from "net";
 import { serverConfig } from "../config.js";
-
 console.log("server configuration", serverConfig);
-
 function setupReplicaProxy() {
   const replicaBridgeConnection = net.createConnection(
     { port: serverConfig.port, host: "127.0.0.1" },
     () => console.log("Replica bridge connected to local server")
   );
-  
   replicaBridgeConnection.on("error", (err) => {
     console.error("Replica bridge connection error:", err.message);
   });
-  
   return replicaBridgeConnection; 
 }
-
 function createMasterConnection() {
   let handshakeComplete = false;
   let rdbBytesReceived = 0;
@@ -45,11 +40,9 @@ function createMasterConnection() {
   connection.on("error", (err) => {
     console.error("Master connection error:", err.message);
   });
-
   let replicaBridgeConnection = null;
   setTimeout(() => {
-    replicaBridgeConnection = setupReplicaProxy();
-    
+    replicaBridgeConnection = setupReplicaProxy();   
     connection.on("data", (data) => {
       console.log("Received from master, bytesRead:", connection.bytesRead, "dataLen:", data.length);
       
