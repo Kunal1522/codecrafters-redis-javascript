@@ -31,7 +31,6 @@ function command_propogator(command,data)
          for(const replica_connections of replicas_connected)
          {
                 replica_connections.write(data); 
-                setInterval(()=>{},1000);
          }
     }
 }

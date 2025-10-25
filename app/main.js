@@ -1,5 +1,5 @@
 import net from "net";
-import { expiry_checker, writeToConnection } from "./utils/utils.js";
+import { expiry_checker, writeToConnection, parseMultipleCommands } from "./utils/utils.js";
 import {
   redisKeyValuePair,
   redisList,
@@ -47,8 +47,20 @@ if (
 const server = net.createServer((connection) => {
   let taskqueue = new MyQueue();
   let multi = { active: false };
+  
   connection.on("data", (data) => {
+    const commands = parseMultipleCommands(data);
+    
+    if (commands.length > 1) {
+      commands.forEach(cmd => processCommand(cmd, connection, taskqueue, multi, data));
+      return;
+    }
+    
     const command = data.toString().split("\r\n");
+    processCommand(command, connection, taskqueue, multi, data);
+  });
+  
+  function processCommand(command, connection, taskqueue, multi, originalData) {
     const intr = command[2]?.toLowerCase();
     const intru = command[2]?.toUpperCase();
     if (intr == "replconf") {
@@ -56,12 +68,12 @@ const server = net.createServer((connection) => {
     } else if (intr == "psync" && serverConfig.role == "master") {
       master_handler(command, serverConfig.master_replica_connection);
     } else if (multi.active && intr != "exec" && intr != "discard") {
-      multi_handler(data, connection, taskqueue);
+      multi_handler(originalData, connection, taskqueue);
     } else if (intr === "ping") {
       connection.write(`+PONG\r\n`);
-      if (serverConfig.role == "master")
-      {        serverConfig.master_replica_connection = connection;
-              replicas_connected.add(serverConfig.master_replica_connection);
+      if (serverConfig.role == "master") {
+        serverConfig.master_replica_connection = connection;
+        replicas_connected.add(serverConfig.master_replica_connection);
       }
     } else if (intr === "echo") {
       connection.write(command[3] + "\r\n" + command[4] + "\r\n");
@@ -70,8 +82,12 @@ const server = net.createServer((connection) => {
       if (command.length > 8) {
         expiry_checker(command, redisKeyValuePair);
       }
+    
+      if (serverConfig.role == "master")
+      {
           console.log("calling propagator");
-      command_propogator(command,data);
+          command_propogator(command, originalData);
+      }
       writeToConnection(
         connection,
         `+OK\r\n`,
@@ -148,9 +164,9 @@ const server = net.createServer((connection) => {
       multi.active = true;
       connection.write(`+OK\r\n`);
     } else if (intr == "exec") {
-      exec_hanlder(data, connection, taskqueue, multi);
+      exec_hanlder(originalData, connection, taskqueue, multi);
     } else if (intr == "discard") {
-      discard_handler(data, connection, taskqueue, multi);
+      discard_handler(originalData, connection, taskqueue, multi);
     } else if (intr == "info") {
       let tmp_res = "role" + ":" + serverConfig.role + "\r\n";
       tmp_res += "master_replid" + ":" + serverConfig.master_replid + "\r\n";
@@ -159,7 +175,7 @@ const server = net.createServer((connection) => {
     } else {
       connection.write("-ERR unknown command\r\n");
     }
-  });
+  }
 });
 server.listen(serverConfig.port, "127.0.0.1", () => {
   console.log(`server running on ${serverConfig.port}`);

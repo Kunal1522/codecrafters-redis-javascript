@@ -4,13 +4,9 @@ import { serverConfig } from "../config.js";
 console.log("server configuration", serverConfig);
 
 function setupReplicaProxy() {
-  // Create a local bridge (to forward data from master → client)
-  // This connection forwards commands from master to the replica's own server
   const replicaBridgeConnection = net.createConnection(
     { port: serverConfig.port, host: "127.0.0.1" },
-    () => {
-      console.log("Replica bridge connected to local server");
-    }
+    () => console.log("Replica bridge connected to local server")
   );
   
   replicaBridgeConnection.on("error", (err) => {
@@ -20,7 +16,6 @@ function setupReplicaProxy() {
   return replicaBridgeConnection; 
 }
 
-// Here this instance becomes the replica
 function createMasterConnection() {
   const connection = net.createConnection(
     { port: serverConfig.master_port, host: "127.0.0.1" },
@@ -29,15 +24,11 @@ function createMasterConnection() {
       connection.write(`*1\r\n$4\r\nPING\r\n`);
 
       setTimeout(() => {
-        connection.write(
-          "*3\r\n$8\r\nREPLCONF\r\n$14\r\nlistening-port\r\n$4\r\n6380\r\n"
-        );
+        connection.write("*3\r\n$8\r\nREPLCONF\r\n$14\r\nlistening-port\r\n$4\r\n6380\r\n");
       }, 100);
 
       setTimeout(() => {
-        connection.write(
-          "*3\r\n$8\r\nREPLCONF\r\n$4\r\ncapa\r\n$6\r\npsync2\r\n"
-        );
+        connection.write("*3\r\n$8\r\nREPLCONF\r\n$4\r\ncapa\r\n$6\r\npsync2\r\n");
       }, 100);
 
       setTimeout(() => {
@@ -50,7 +41,6 @@ function createMasterConnection() {
     console.error("Master connection error:", err.message);
   });
 
-  // Setup bridge connection after a delay to ensure local server is listening
   let replicaBridgeConnection = null;
   setTimeout(() => {
     replicaBridgeConnection = setupReplicaProxy();
