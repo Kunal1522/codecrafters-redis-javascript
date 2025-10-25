@@ -3,7 +3,6 @@ import {
   expiry_checker,
   writeToConnection,
   parseMultipleCommands,
-  getCommandByteSize,
 } from "./utils/utils.js";
 import {
   redisKeyValuePair,
@@ -52,33 +51,25 @@ if (
 const server = net.createServer((connection) => {
   let taskqueue = new MyQueue();
   let multi = { active: false };
-  let isMasterConnection = false;
 
   connection.on("data", (data) => {
     const commands = parseMultipleCommands(data);
 
-    if (commands.length > 1) {
-      commands.forEach((cmd) =>
-        processCommand(cmd, connection, taskqueue, multi, data)
-      );
-      return;
-    }
-
-    const command = data.toString().split("\r\n");
-    processCommand(command, connection, taskqueue, multi, data);
+    commands.forEach((cmd) =>
+      processCommand(cmd, connection, taskqueue, multi, data)
+    );
   });
 
   function processCommand(command, connection, taskqueue, multi, originalData) {
-    const intr = command[2]?.toLowerCase();
-    const intru = command[2]?.toUpperCase();
-    
-    if (intr == "replconf" && serverConfig.role == "slave") {
-      if (command[4]?.toLowerCase() === "getack") {
+    const intr = command[0]?.toLowerCase();
+    const intru = command[0]?.toUpperCase();
+    console.log("command",command);
+    if (intr=='replconf' && command[1]?.toLowerCase() === 'getack') {
         const response = `*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$${serverConfig.replica_offset.toString().length}\r\n${serverConfig.replica_offset}\r\n`;
-        connection.write(response);
-        isMasterConnection = true;
-      }
-      serverConfig.replica_offset += getCommandByteSize(originalData);
+        console.log("Sending ACK with offset:", serverConfig.replica_offset);
+        if (serverConfig.master_replica_connection) {
+          serverConfig.master_replica_connection.write(response);
+        }
     } else if (intr == "replconf" && serverConfig.role == "master") {
       connection.write(`+OK\r\n`);
     } else if (intr == "psync" && serverConfig.role == "master") {
@@ -90,16 +81,14 @@ const server = net.createServer((connection) => {
         serverConfig.master_replica_connection = connection;
         replicas_connected.add(serverConfig.master_replica_connection);
         connection.write(`+PONG\r\n`);
-      } else if (serverConfig.role == "slave") {
-        isMasterConnection = true;
-      } else {
+      } else if (serverConfig.role != "slave") {
         connection.write(`+PONG\r\n`);
       }
     } else if (intr === "echo") {
-      connection.write(command[3] + "\r\n" + command[4] + "\r\n");
+      connection.write(`$${command[1].length}\r\n${command[1]}\r\n`);
     } else if (intr === "set") {
-      redisKeyValuePair.set(command[4], command[6]);
-      if (command.length > 8) {
+      redisKeyValuePair.set(command[1], command[2]);
+      if (command.length > 3) {
         expiry_checker(command, redisKeyValuePair);
       }
 
@@ -115,7 +104,7 @@ const server = net.createServer((connection) => {
         REPLICATABLE_COMMANDS
       );
     } else if (intr === "get") {
-      const value = redisKeyValuePair.get(command[4]);
+      const value = redisKeyValuePair.get(command[1]);
       if (value === "ille_pille_kille" || value === undefined) {
         connection.write(`$-1\r\n`);
       } else {
@@ -132,11 +121,11 @@ const server = net.createServer((connection) => {
     } else if (intr === "lrange") {
       lrange_handler(command, redisList, connection);
     } else if (intr === "lpush") {
-      const key = command[4];
+      const key = command[1];
       if (!redisList[key]) {
         redisList[key] = [];
       }
-      for (let i = 6; i < command.length; i += 2) {
+      for (let i = 2; i < command.length; i++) {
         if (command[i]) redisList[key].unshift(command[i]);
       }
       writeToConnection(
@@ -147,7 +136,7 @@ const server = net.createServer((connection) => {
         REPLICATABLE_COMMANDS
       );
     } else if (intr === "llen") {
-      const key = command[4];
+      const key = command[1];
       const len = redisList[key]?.length ?? 0;
       connection.write(`:${len}\r\n`);
     } else if (intr === "lpop") {
@@ -161,7 +150,7 @@ const server = net.createServer((connection) => {
         serverConfig
       );
     } else if (intr === "type") {
-      const key = command[4];
+      const key = command[1];
       if (redisStream[key]) {
         connection.write("+stream\r\n");
       } else if (redisList[key]) {
@@ -174,7 +163,7 @@ const server = net.createServer((connection) => {
     } else if (intr === "xadd") {
       xadd_handler(command, connection, blocked_streams, serverConfig);
     } else if (intr === "xrange") {
-      x_range_handler(command[6], command[8], command, connection);
+      x_range_handler(command[2], command[3], command, connection);
     } else if (intr === "xread") {
       xread_handler(command, connection, blocked_streams);
     } else if (intr == "incr") {
@@ -193,12 +182,6 @@ const server = net.createServer((connection) => {
       connection.write(`$${tmp_res.length}\r\n${tmp_res}\r\n`);
     } else {
       connection.write("-ERR unknown command\r\n");
-    }
-    
-    if (serverConfig.role === "slave" && intr !== "replconf") {
-      if (isMasterConnection || REPLICATABLE_COMMANDS.includes(intru)) {
-        serverConfig.replica_offset += getCommandByteSize(originalData);
-      }
     }
   }
 });

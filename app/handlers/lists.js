@@ -2,9 +2,9 @@ import { writeToConnection } from "../utils/utils.js";
 import { REPLICATABLE_COMMANDS } from "../state/store.js";
 
 function lrange_handler(command, redis_list, connection) {
-  const key = command[4];
-  let start = Number(command[6]);
-  let stop = Number(command[8]);
+  const key = command[1];
+  let start = Number(command[2]);
+  let stop = Number(command[3]);
   if (start < 0) start = redis_list[key].length + start;
   if (stop < 0) stop = redis_list[key].length + stop;
   start = Math.max(start, 0);
@@ -36,9 +36,9 @@ function lrange_handler(command, redis_list, connection) {
 }
 
 function lpop_handler(command, redis_list, connection, serverConfig) {
-  const key = command[4];
-  if (command.length > 6) {
-    const element_to_pop = command[6];
+  const key = command[1];
+  if (command.length > 2) {
+    const element_to_pop = command[2];
     let elements_remove = [];
     for (let i = 0; i < element_to_pop; i++) {
       const top_most = redis_list[key].shift();
@@ -65,12 +65,12 @@ function lpop_handler(command, redis_list, connection, serverConfig) {
 }
 
 function blop_handler(command, redis_list, blop_connections, connection, serverConfig) {
-  const key = command[4];
+  const key = command[1];
   if (!blop_connections[key]) {
     blop_connections[key] = [];
   }
   blop_connections[key].push(connection);
-  const timeout = command.length > 6 ? Number(command[6]) * 1000 : null;
+  const timeout = command.length > 2 ? Number(command[2]) * 1000 : null;
   if (timeout != 0) {
     setTimeout(() => {
       const top_connection = blop_connections[key].shift();
@@ -91,11 +91,11 @@ function blop_handler(command, redis_list, blop_connections, connection, serverC
 }
 
 function rpush_handler(command, redis_list, blop_connections, connection, serverConfig) {
-  const key = command[4];
+  const key = command[1];
   if (!redis_list[key]) {
     redis_list[key] = [];
   }
-  for (let i = 6; i < command.length; i += 2) {
+  for (let i = 2; i < command.length; i++) {
     redis_list[key].push(command[i]);
   }
   writeToConnection(connection, ":" + redis_list[key].length + "\r\n", "rpush", serverConfig, REPLICATABLE_COMMANDS);
@@ -118,7 +118,7 @@ function rpush_handler(command, redis_list, blop_connections, connection, server
   }
 }
 function incr_handler(command, redis_key_value, connection, serverConfig) {
-  const key = command[4];
+  const key = command[1];
   console.log(typeof redis_key_value.get(key));
   if (redis_key_value.get(key) == undefined) {
     redis_key_value.set(key, 0);

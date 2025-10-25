@@ -21,8 +21,8 @@ function generateStreamId(rawId) {
   return fullId;
 }
 function xadd_handler(command, connection, blocked_streams, serverConfig) {
-  const streamKey = command[4];
-  let entryId = command[6];
+  const streamKey = command[1];
+  let entryId = command[2];
   entryId = generateStreamId(entryId);
   if (!redisStream[streamKey]) {
     redisStream[streamKey] = [];
@@ -58,9 +58,9 @@ function xadd_handler(command, connection, blocked_streams, serverConfig) {
   }
   const entry = { id: entryId };
 
-  for (let i = 8; i < command.length; i += 4) {
+  for (let i = 3; i < command.length; i += 2) {
     const fieldName = command[i];
-    const fieldValue = command[i + 2];
+    const fieldValue = command[i + 1];
     if (fieldName && fieldValue) {
       entry[fieldName] = fieldValue;
     }
@@ -93,7 +93,7 @@ function xadd_handler(command, connection, blocked_streams, serverConfig) {
 }
 
 function x_range_handler(startkey, endkey, command, connection) {
-  const streamKey = command[4];
+  const streamKey = command[1];
   let endkey_copy = endkey;
   if (!startkey.includes("-")) startkey += "-0";
   if (!endkey.includes("-")) endkey += "-18446744073709551615";
@@ -148,39 +148,28 @@ function x_range_handler(startkey, endkey, command, connection) {
 }
 
 function xread_handler(command, connection, blocked_streams) {
-  // Find BLOCK parameter
-  let blockset = 0;
   let timeout = null;
-  let blockIndex = -1;
+  let commandIndex = 1;
   
-  for (let i = 0; i < command.length; i++) {
-    if (command[i] && command[i].toLowerCase() === "block") {
-      blockIndex = i;
-      timeout = Number(command[i + 2]); // Next element after "block" (skip length indicator)
-      blockset = 2; // Adjust offsets for BLOCK <timeout>
-      break;
-    }
-  }
-  console.log("timeout,blockset",timeout,blockset);
-  // Find STREAMS keyword
-  let streamsIndex = -1;
-  for (let i = 0; i < command.length; i++) {
-    if (command[i] && command[i].toLowerCase() === "streams") {
-      streamsIndex = i;
-      break;
-    }
+  if (command[commandIndex]?.toLowerCase() === "block") {
+    timeout = Number(command[commandIndex + 1]);
+    commandIndex += 2;
   }
   
-  const stream_count = (command.length - 6 - blockset) / 4;
-  let stream_key_index = streamsIndex + 2;
-  let stream_keys = [];
+  if (command[commandIndex]?.toLowerCase() !== "streams") {
+    connection.write("-ERR syntax error\r\n");
+    return;
+  }
+  commandIndex++;
   
+  const remainingArgs = command.length - commandIndex;
+  const stream_count = Math.floor(remainingArgs / 2);
+  
+  const stream_keys = [];
   for (let i = 0; i < stream_count; i++) {
-    stream_keys.push(command[stream_key_index]);
-    stream_key_index += 2;
+    stream_keys.push(command[commandIndex + i]);
   }
 
-  // Ensure all streams exist
   for (let i = 0; i < stream_count; i++) {
     const streamKey = stream_keys[i];
     if (!redisStream[streamKey]) {
@@ -188,17 +177,11 @@ function xread_handler(command, connection, blocked_streams) {
     }
   }
   
-  let offset_ids = 5 + stream_count * 2 + 1 + blockset;
-  
-  // Extract start IDs for each stream
-  let start_ids = [];
-  let temp_offset = offset_ids;
+  const start_ids = [];
   for (let i = 0; i < stream_count; i++) {
-    start_ids.push(command[temp_offset]);
-    temp_offset += 2;
+    start_ids.push(command[commandIndex + stream_count + i]);
   }
 
-  // Build array of results first
   const results = [];
   let hasEntries = false;
 

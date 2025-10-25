@@ -7,7 +7,7 @@ import { replicas_connected,REPLICATABLE_COMMANDS } from "../state/store.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 function master_handler(command, connection) {
-  const intr = command[2]?.toLowerCase();
+  const intr = command[0]?.toLowerCase();
   if (intr == "psync") {
     connection.write(`+FULLRESYNC ${serverConfig.master_replid} 0\r\n`);
     const rdbPath = path.join(__dirname, "empty.rdb");
@@ -23,7 +23,7 @@ function master_handler(command, connection) {
 function command_propogator(command,data)
 {
     console.log(command);
-    const intr=command[2]?.toUpperCase();
+    const intr=command[0]?.toUpperCase();
     console.log(intr);
     if(REPLICATABLE_COMMANDS.includes(intr) && serverConfig.role==="master")
     {

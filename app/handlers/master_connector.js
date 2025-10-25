@@ -17,6 +17,9 @@ function setupReplicaProxy() {
 }
 
 function createMasterConnection() {
+  let handshakeComplete = false;
+  let rdbBytesReceived = 0;
+  
   const connection = net.createConnection(
     { port: serverConfig.master_port, host: "127.0.0.1" },
     () => {
@@ -46,8 +49,19 @@ function createMasterConnection() {
     replicaBridgeConnection = setupReplicaProxy();
     
     connection.on("data", (data) => {
-      if (replicaBridgeConnection) {
-        replicaBridgeConnection.write(data);
+      if (!handshakeComplete) {
+        const dataStr = data.toString();
+        if (dataStr.includes('REDIS') || data[0] === 0x52) {
+          handshakeComplete = true;
+          rdbBytesReceived = connection.bytesRead;
+          serverConfig.replica_offset = 0;
+        }
+      } else {
+        const offsetBeforeThisCommand = connection.bytesRead - rdbBytesReceived - data.length;
+        serverConfig.replica_offset = offsetBeforeThisCommand;
+        if (replicaBridgeConnection) {
+          replicaBridgeConnection.write(data);
+        }
       }
     });
   }, 1000);
