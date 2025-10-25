@@ -49,14 +49,21 @@ function createMasterConnection() {
     replicaBridgeConnection = setupReplicaProxy();
     
     connection.on("data", (data) => {
+      console.log("Received from master, bytesRead:", connection.bytesRead, "dataLen:", data.length);
       if (!handshakeComplete) {
-        const dataStr = data.toString();
-        if (dataStr.includes('REDIS') || data[0] === 0x52) {
+        const dataStr = data.toString('latin1');
+        const hasFullresync = dataStr.includes('FULLRESYNC');
+        const hasRdbPrefix = dataStr.includes('$88') || dataStr.includes('$');
+        const hasRedis = dataStr.includes('REDIS') || data.includes(Buffer.from('REDIS'));
+        
+        if (hasFullresync || hasRedis || hasRdbPrefix) {
+          console.log("Handshake/RDB detected, setting handshakeComplete");
           handshakeComplete = true;
           rdbBytesReceived = connection.bytesRead;
           serverConfig.replica_offset = 0;
         }
       } else {
+        console.log("Forwarding to bridge, offset:", connection.bytesRead - rdbBytesReceived);
         if (replicaBridgeConnection) {
           replicaBridgeConnection.write(data);
         }
