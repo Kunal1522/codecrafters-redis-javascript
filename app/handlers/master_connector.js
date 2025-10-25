@@ -59,8 +59,6 @@ function createMasterConnection() {
         if (hasFullresync || hasRedis || hasRdbPrefix) {
           console.log("Handshake/RDB detected, setting handshakeComplete");
           handshakeComplete = true;
-          rdbBytesReceived = connection.bytesRead;
-          serverConfig.replica_offset = 0;
           
           // Check if there are commands after RDB in the same buffer
           const rdbEndMatch = dataStr.match(/\$(\d+)\r\n/);
@@ -68,6 +66,9 @@ function createMasterConnection() {
             const rdbSize = parseInt(rdbEndMatch[1]);
             const rdbStartIndex = dataStr.indexOf(rdbEndMatch[0]) + rdbEndMatch[0].length;
             const rdbEndIndex = rdbStartIndex + rdbSize;
+            
+            // Set rdbBytesReceived to point at end of RDB (not end of buffer)
+            rdbBytesReceived = connection.bytesRead - data.length + rdbEndIndex;
             
             if (rdbEndIndex < data.length) {
               // There's data after RDB, forward it to bridge
@@ -77,7 +78,12 @@ function createMasterConnection() {
                 replicaBridgeConnection.write(commandsAfterRdb);
               }
               serverConfig.replica_offset = commandsAfterRdb.length;
+            } else {
+              serverConfig.replica_offset = 0;
             }
+          } else {
+            rdbBytesReceived = connection.bytesRead;
+            serverConfig.replica_offset = 0;
           }
         }
       } else {
