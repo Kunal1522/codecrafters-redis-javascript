@@ -52,6 +52,11 @@ function wait_handler(connection, command) {
   
   const currentMasterOffset = Math.max(...Array.from(master_offset.values()), 0);
   
+  if (currentMasterOffset === 0) {
+    connection.write(`:${replicas_connected.size}\r\n`);
+    return;
+  }
+  
   pendingWaitRequest.active = true;
   pendingWaitRequest.clientConnection = connection;
   pendingWaitRequest.numRequired = numReplicasRequired;
