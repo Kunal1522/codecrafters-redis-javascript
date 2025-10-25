@@ -19,6 +19,8 @@ function setupReplicaProxy() {
 function createMasterConnection() {
   let handshakeComplete = false;
   let rdbBytesReceived = 0;
+  let rdbSize = null;
+  let rdbStartPosition = null;
   
   const connection = net.createConnection(
     { port: serverConfig.master_port, host: "127.0.0.1" },
@@ -50,40 +52,43 @@ function createMasterConnection() {
     
     connection.on("data", (data) => {
       console.log("Received from master, bytesRead:", connection.bytesRead, "dataLen:", data.length);
+      
       if (!handshakeComplete) {
         const dataStr = data.toString('latin1');
-        const hasFullresync = dataStr.includes('FULLRESYNC');
-        const hasRdbPrefix = dataStr.includes('$88') || dataStr.includes('$');
-        const hasRedis = dataStr.includes('REDIS') || data.includes(Buffer.from('REDIS'));
         
-        if (hasFullresync || hasRedis || hasRdbPrefix) {
-          console.log("Handshake/RDB detected, setting handshakeComplete");
-          handshakeComplete = true;
-          
-          // Check if there are commands after RDB in the same buffer
-          const rdbEndMatch = dataStr.match(/\$(\d+)\r\n/);
-          if (rdbEndMatch) {
-            const rdbSize = parseInt(rdbEndMatch[1]);
-            const rdbStartIndex = dataStr.indexOf(rdbEndMatch[0]) + rdbEndMatch[0].length;
-            const rdbEndIndex = rdbStartIndex + rdbSize;
-            
-            // Set rdbBytesReceived to point at end of RDB (not end of buffer)
-            rdbBytesReceived = connection.bytesRead - data.length + rdbEndIndex;
-            
-            if (rdbEndIndex < data.length) {
-              // There's data after RDB, forward it to bridge
-              const commandsAfterRdb = data.slice(rdbEndIndex);
-              console.log("Commands after RDB detected, forwarding", commandsAfterRdb.length, "bytes");
-              if (replicaBridgeConnection) {
-                replicaBridgeConnection.write(commandsAfterRdb);
-              }
-              serverConfig.replica_offset = commandsAfterRdb.length;
-            } else {
-              serverConfig.replica_offset = 0;
-            }
-          } else {
-            rdbBytesReceived = connection.bytesRead;
+        // Detect RDB size from $<size>\r\n
+        if (rdbSize === null) {
+          const rdbMatch = dataStr.match(/\$(\d+)\r\n/);
+          if (rdbMatch) {
+            rdbSize = parseInt(rdbMatch[1]);
+            const rdbPrefixEnd = dataStr.indexOf(rdbMatch[0]) + rdbMatch[0].length;
+            rdbStartPosition = connection.bytesRead - data.length + rdbPrefixEnd;
+            console.log("RDB detected, size:", rdbSize, "startPos:", rdbStartPosition);
+          }
+        }
+        
+        // Check if RDB is complete
+        if (rdbSize !== null) {
+          const rdbEndPosition = rdbStartPosition + rdbSize;
+          if (connection.bytesRead >= rdbEndPosition) {
+            console.log("RDB complete, setting handshakeComplete");
+            handshakeComplete = true;
+            rdbBytesReceived = rdbEndPosition;
             serverConfig.replica_offset = 0;
+            
+            // Check if there are commands after RDB in current buffer
+            const currentBufferStart = connection.bytesRead - data.length;
+            if (rdbEndPosition > currentBufferStart) {
+              const offsetInBuffer = rdbEndPosition - currentBufferStart;
+              if (offsetInBuffer < data.length) {
+                const commandsAfterRdb = data.slice(offsetInBuffer);
+                console.log("Commands after RDB in buffer, forwarding", commandsAfterRdb.length, "bytes");
+                if (replicaBridgeConnection) {
+                  replicaBridgeConnection.write(commandsAfterRdb);
+                }
+                serverConfig.replica_offset = commandsAfterRdb.length;
+              }
+            }
           }
         }
       } else {
