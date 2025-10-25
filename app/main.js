@@ -65,8 +65,10 @@ const server = net.createServer((connection) => {
     const intru = command[0]?.toUpperCase();
     console.log("command",command);
     if (intr=='replconf' && command[1]?.toLowerCase() === 'getack') {
-        const response = `*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$${serverConfig.replica_offset.toString().length}\r\n${serverConfig.replica_offset}\r\n`;
-        console.log("Sending ACK with offset:", serverConfig.replica_offset);
+        const getAckBytes = originalData.length;
+        const offsetBeforeGetAck = serverConfig.replica_offset - getAckBytes;
+        const response = `*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$${offsetBeforeGetAck.toString().length}\r\n${offsetBeforeGetAck}\r\n`;
+        console.log("Sending ACK with offset:", offsetBeforeGetAck);
         if (serverConfig.master_replica_connection) {
           serverConfig.master_replica_connection.write(response);
         }

@@ -53,15 +53,14 @@ function createMasterConnection() {
         const dataStr = data.toString();
         if (dataStr.includes('REDIS') || data[0] === 0x52) {
           handshakeComplete = true;
-          rdbBytesReceived = connection.bytesRead;
+          rdbBytesReceived = connection.bytesRead - data.length;
           serverConfig.replica_offset = 0;
         }
       } else {
-        const offsetBeforeThisCommand = connection.bytesRead - rdbBytesReceived - data.length;
-        serverConfig.replica_offset = offsetBeforeThisCommand;
         if (replicaBridgeConnection) {
           replicaBridgeConnection.write(data);
         }
+        serverConfig.replica_offset = connection.bytesRead - rdbBytesReceived;
       }
     });
   }, 1000);
