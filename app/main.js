@@ -40,6 +40,22 @@ import {
   wait_handler,
 } from "./handlers/master_handler.js";
 import { serverConfig } from "./config.js";
+import { parseRDB } from "./utils/rdb_parser.js";
+import path from "path";
+
+if (serverConfig.dir && serverConfig.dbfilename) {
+  const rdbPath = path.join(serverConfig.dir, serverConfig.dbfilename);
+  try {
+    const { keys } = parseRDB(rdbPath);
+    keys.forEach((data, key) => {
+      redisKeyValuePair.set(key, data);
+    });
+    console.log(`Loaded ${keys.size} keys from RDB file`);
+  } catch (error) {
+    console.log(`RDB file not found or error loading: ${error.message}`);
+  }
+}
+
 console.log("Logs from your program will appear here!");
 if (
   serverConfig.master_host !== undefined &&
@@ -151,7 +167,38 @@ const server = net.createServer((connection) => {
       if (value === "ille_pille_kille" || value === undefined) {
         connection.write(`$-1\r\n`);
       } else {
-        connection.write(`$${value.length}\r\n${value}\r\n`);
+        const actualValue = typeof value === 'object' && value.value !== undefined ? value.value : value;
+        
+        if (typeof value === 'object' && value.expireAt) {
+          if (Date.now() > value.expireAt) {
+            redisKeyValuePair.delete(command[1]);
+            connection.write(`$-1\r\n`);
+            return;
+          }
+        }
+        
+        connection.write(`$${actualValue.length}\r\n${actualValue}\r\n`);
+      }
+    } else if (intr === "keys") {
+      const pattern = command[1];
+      if (pattern === "*") {
+        const keys = [];
+        for (const [key, value] of redisKeyValuePair.entries()) {
+          if (typeof value === 'object' && value.expireAt) {
+            if (Date.now() > value.expireAt) {
+              redisKeyValuePair.delete(key);
+              continue;
+            }
+          }
+          keys.push(key);
+        }
+        
+        connection.write(`*${keys.length}\r\n`);
+        keys.forEach(key => {
+          connection.write(`$${key.length}\r\n${key}\r\n`);
+        });
+      } else {
+        connection.write(`*0\r\n`);
       }
     } else if (intr === "rpush") {
       rpush_handler(
