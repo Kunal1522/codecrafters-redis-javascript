@@ -53,7 +53,7 @@ function createMasterConnection() {
         const dataStr = data.toString();
         if (dataStr.includes('REDIS') || data[0] === 0x52) {
           handshakeComplete = true;
-          rdbBytesReceived = connection.bytesRead - data.length;
+          rdbBytesReceived = connection.bytesRead;
           serverConfig.replica_offset = 0;
         }
       } else {
