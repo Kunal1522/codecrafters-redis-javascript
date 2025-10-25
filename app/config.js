@@ -3,6 +3,7 @@ let serverConfig = {
   role: "master",
   master_replid: "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb",
   master_repl_offset: 0,
+  replica_offset: 0,
   master_host: undefined,
   master_port: undefined,
   master_replica_connection: undefined

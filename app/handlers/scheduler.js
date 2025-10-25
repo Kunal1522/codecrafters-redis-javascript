@@ -71,10 +71,8 @@ function exec_hanlder(buffer_data, connection, taskqueue, multi) {
 
   clientConnection.on("data", (data) => {
     responseBuffer += data.toString();
-    
     // Try to parse one complete response
     const response = parseOneResponse(responseBuffer);
-    
     if (response !== null) {
       // We got a complete response
       results.push(response.data);
@@ -85,7 +83,6 @@ function exec_hanlder(buffer_data, connection, taskqueue, multi) {
       sendNextCommand();
     }
   });
-
   clientConnection.on("end", () => {
     // Send all collected results back to the original connection
     connection.write(`*${results.length}\r\n`);
