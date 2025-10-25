@@ -155,7 +155,6 @@ function xread_handler(command, connection, blocked_streams) {
     timeout = Number(command[commandIndex + 1]);
     commandIndex += 2;
   }
-  
   if (command[commandIndex]?.toLowerCase() !== "streams") {
     connection.write("-ERR syntax error\r\n");
     return;

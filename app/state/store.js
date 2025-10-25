@@ -20,4 +20,5 @@ const REPLICATABLE_COMMANDS = [
   'BLPOP',
 ];
 const replicas_connected=new Set();
-export { redisKeyValuePair, redisList, blpopConnections, redisStream, streamSequenceMap,blocked_streams,REPLICATABLE_COMMANDS,replicas_connected};
+const master_offset=new Map();
+export { redisKeyValuePair, redisList, blpopConnections, redisStream, streamSequenceMap,blocked_streams,REPLICATABLE_COMMANDS,replicas_connected,master_offset};

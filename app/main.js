@@ -36,6 +36,7 @@ import { createMasterConnection } from "./handlers/master_connector.js";
 import {
   master_handler,
   command_propogator,
+  wait_handler
 } from "./handlers/master_handler.js";
 import { serverConfig } from "./config.js";
 console.log("Logs from your program will appear here!");
@@ -81,6 +82,8 @@ const server = net.createServer((connection) => {
       multi_handler(originalData, connection, taskqueue);
     }
     else if(intr=='wait' && serverConfig.role==='master'){
+      wait_handler(connection,command);
+      //this is for dummy
       connection.write(`:${replicas_connected.size}\r\n`);
     } else if (intr === "ping") {
       if (serverConfig.role == "master") {
