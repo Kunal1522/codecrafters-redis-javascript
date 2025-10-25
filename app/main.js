@@ -37,7 +37,7 @@ import { createMasterConnection } from "./handlers/master_connector.js";
 import {
   master_handler,
   command_propogator,
-  wait_handler
+  wait_handler,
 } from "./handlers/master_handler.js";
 import { serverConfig } from "./config.js";
 console.log("Logs from your program will appear here!");
@@ -65,23 +65,32 @@ const server = net.createServer((connection) => {
   function processCommand(command, connection, taskqueue, multi, originalData) {
     const intr = command[0]?.toLowerCase();
     const intru = command[0]?.toUpperCase();
-    
-    if (intr=='replconf' && command[1]?.toLowerCase() === 'getack') {
-        const getAckBytes = 37;
-        const offsetBeforeGetAck = serverConfig.replica_offset - getAckBytes;
-        const response = `*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$${offsetBeforeGetAck.toString().length}\r\n${offsetBeforeGetAck}\r\n`;
-        if (serverConfig.master_replica_connection) {
-          serverConfig.master_replica_connection.write(response);
-        }
-    } else if (intr == "replconf" && command[1]?.toLowerCase() === 'ack' && serverConfig.role == "master") {
+
+    if (intr == "replconf" && command[1]?.toLowerCase() === "getack") {
+      const getAckBytes = 37;
+      const offsetBeforeGetAck = serverConfig.replica_offset - getAckBytes;
+      const response = `*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$${
+        offsetBeforeGetAck.toString().length
+      }\r\n${offsetBeforeGetAck}\r\n`;
+      if (serverConfig.master_replica_connection) {
+        serverConfig.master_replica_connection.write(response);
+      }
+    } else if (
+      intr == "replconf" &&
+      command[1]?.toLowerCase() === "ack" &&
+      serverConfig.role == "master"
+    ) {
       const replicaOffset = parseInt(command[2], 10);
       if (pendingWaitRequest.active) {
         if (replicaOffset >= pendingWaitRequest.expectedOffset) {
           if (!pendingWaitRequest.ackedReplicas.has(connection)) {
             pendingWaitRequest.ackedReplicas.add(connection);
-            
+
             const ackedCount = pendingWaitRequest.ackedReplicas.size;
-            if (ackedCount >= pendingWaitRequest.numRequired || ackedCount >= replicas_connected.size) {
+            if (
+              ackedCount >= pendingWaitRequest.numRequired ||
+              ackedCount >= replicas_connected.size
+            ) {
               if (pendingWaitRequest.timeoutId) {
                 clearTimeout(pendingWaitRequest.timeoutId);
               }
@@ -98,14 +107,13 @@ const server = net.createServer((connection) => {
       master_handler(command, serverConfig.master_replica_connection);
     } else if (multi.active && intr != "exec" && intr != "discard") {
       multi_handler(originalData, connection, taskqueue);
-    }
-    else if(intr=='wait' && serverConfig.role==='master'){
-      wait_handler(connection,command);
-    }
-    else if(intr=='config' && command[1]=='get' && command[2]=='dir')
-      {
-          connection.write(`*2\r\n${serverConfig.dir.length}\r\n${serverConfig.dir}\r\n${serverConfig.dbfilename.length}\r\n${serverConfig.dbfilename}\r\n`);
-      } else if (intr === "ping") {
+    } else if (intr == "wait" && serverConfig.role === "master") {
+      wait_handler(connection, command);
+    } else if (intr == "config" && command[1] == "GET" && command[2] == "DIR") {
+      connection.write(
+        `*2\r\n${serverConfig.dir.length}\r\n${serverConfig.dir}\r\n${serverConfig.dbfilename.length}\r\n${serverConfig.dbfilename}\r\n`
+      );
+    } else if (intr === "ping") {
       if (serverConfig.role == "master") {
         serverConfig.master_replica_connection = connection;
         replicas_connected.add(serverConfig.master_replica_connection);
