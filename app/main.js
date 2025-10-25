@@ -65,7 +65,7 @@ const server = net.createServer((connection) => {
   function processCommand(command, connection, taskqueue, multi, originalData) {
     const intr = command[0]?.toLowerCase();
     const intru = command[0]?.toUpperCase();
-
+    console.log(command);
     if (intr == "replconf" && command[1]?.toLowerCase() === "getack") {
       const getAckBytes = 37;
       const offsetBeforeGetAck = serverConfig.replica_offset - getAckBytes;
@@ -109,10 +109,16 @@ const server = net.createServer((connection) => {
       multi_handler(originalData, connection, taskqueue);
     } else if (intr == "wait" && serverConfig.role === "master") {
       wait_handler(connection, command);
-    } else if (intr == "config" && command[1] == "GET" && command[2] == "DIR") {
-      connection.write(
-        `*2\r\n${serverConfig.dir.length}\r\n${serverConfig.dir}\r\n${serverConfig.dbfilename.length}\r\n${serverConfig.dbfilename}\r\n`
-      );
+    } else if (intr == "config" && command[1] == "GET") {
+      if (command[2] == "dir") {
+        connection.write(
+          `*2\r\n$3\r\ndir\r\n$${serverConfig.dir.length}\r\n${serverConfig.dir}\r\n`
+        );
+      } else if (command[2] == "dbfilename") {
+        connection.write(
+          `*2\r\n$10\r\ndbfilename\r\n$${serverConfig.dbfilename.length}\r\n${serverConfig.dbfilename}\r\n`
+        );
+      }
     } else if (intr === "ping") {
       if (serverConfig.role == "master") {
         serverConfig.master_replica_connection = connection;
