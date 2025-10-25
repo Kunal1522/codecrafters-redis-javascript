@@ -21,4 +21,12 @@ const REPLICATABLE_COMMANDS = [
 ];
 const replicas_connected=new Set();
 const master_offset=new Map();
-export { redisKeyValuePair, redisList, blpopConnections, redisStream, streamSequenceMap,blocked_streams,REPLICATABLE_COMMANDS,replicas_connected,master_offset};
+const pendingWaitRequest = {
+  active: false,
+  clientConnection: null,
+  numRequired: 0,
+  timeout: 0,
+  ackedReplicas: new Set(),
+  timeoutId: null
+};
+export { redisKeyValuePair, redisList, blpopConnections, redisStream, streamSequenceMap,blocked_streams,REPLICATABLE_COMMANDS,replicas_connected,master_offset,pendingWaitRequest};

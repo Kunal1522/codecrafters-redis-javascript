@@ -12,6 +12,7 @@ import {
   blocked_streams,
   REPLICATABLE_COMMANDS,
   replicas_connected,
+  pendingWaitRequest,
 } from "./state/store.js";
 import {
   lrange_handler,
@@ -74,6 +75,36 @@ const server = net.createServer((connection) => {
         if (serverConfig.master_replica_connection) {
           serverConfig.master_replica_connection.write(response);
         }
+    } else if (intr == "replconf" && command[1]?.toLowerCase() === 'ack' && serverConfig.role == "master") {
+      // Handle ACK response from replica
+      const replicaOffset = parseInt(command[2], 10);
+      console.log("Received ACK from replica with offset:", replicaOffset, "Connection:", connection.remotePort);
+      
+      // Check if there's a pending WAIT request
+      if (pendingWaitRequest.active) {
+        console.log("Checking pending WAIT request. Expected offset:", pendingWaitRequest.expectedOffset, "Replica offset:", replicaOffset);
+        
+        // Check if this replica has caught up
+        if (replicaOffset >= pendingWaitRequest.expectedOffset) {
+          // Add this replica to the acked set (using connection as identifier)
+          if (!pendingWaitRequest.ackedReplicas.has(connection)) {
+            pendingWaitRequest.ackedReplicas.add(connection);
+            console.log("Replica acknowledged. Total ACKs:", pendingWaitRequest.ackedReplicas.size);
+            
+            // Check if we have enough ACKs now
+            const ackedCount = pendingWaitRequest.ackedReplicas.size;
+            if (ackedCount >= pendingWaitRequest.numRequired || ackedCount >= replicas_connected.size) {
+              console.log("Enough ACKs received. Sending response.");
+              if (pendingWaitRequest.timeoutId) {
+                clearTimeout(pendingWaitRequest.timeoutId);
+              }
+              pendingWaitRequest.clientConnection.write(`:${ackedCount}\r\n`);
+              pendingWaitRequest.active = false;
+              pendingWaitRequest.ackedReplicas.clear();
+            }
+          }
+        }
+      }
     } else if (intr == "replconf" && serverConfig.role == "master") {
       connection.write(`+OK\r\n`);
     } else if (intr == "psync" && serverConfig.role == "master") {
@@ -83,8 +114,6 @@ const server = net.createServer((connection) => {
     }
     else if(intr=='wait' && serverConfig.role==='master'){
       wait_handler(connection,command);
-      //this is for dummy
-      connection.write(`:${replicas_connected.size}\r\n`);
     } else if (intr === "ping") {
       if (serverConfig.role == "master") {
         serverConfig.master_replica_connection = connection;
