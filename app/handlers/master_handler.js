@@ -42,6 +42,16 @@ function wait_handler(connection, command) {
   if (pendingWaitRequest.timeoutId) {
     clearTimeout(pendingWaitRequest.timeoutId);
   }
+  /*
+  const pendingWaitRequest = {
+  active: false,
+  clientConnection: null,
+  numRequired: 0,
+  timeout: 0,
+  ackedReplicas: new Set(),
+  timeoutId: null,
+  replicaExpectedOffsets: new Map()
+};*/ 
   pendingWaitRequest.active = false;
   pendingWaitRequest.ackedReplicas.clear();
   
@@ -51,12 +61,10 @@ function wait_handler(connection, command) {
   }
   
   const currentMasterOffset = Math.max(...Array.from(master_offset.values()), 0);
-  
   if (currentMasterOffset === 0) {
     connection.write(`:${replicas_connected.size}\r\n`);
     return;
   }
-  
   pendingWaitRequest.active = true;
   pendingWaitRequest.clientConnection = connection;
   pendingWaitRequest.numRequired = numReplicasRequired;

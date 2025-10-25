@@ -75,7 +75,6 @@ const server = net.createServer((connection) => {
         }
     } else if (intr == "replconf" && command[1]?.toLowerCase() === 'ack' && serverConfig.role == "master") {
       const replicaOffset = parseInt(command[2], 10);
-      
       if (pendingWaitRequest.active) {
         if (replicaOffset >= pendingWaitRequest.expectedOffset) {
           if (!pendingWaitRequest.ackedReplicas.has(connection)) {
@@ -102,7 +101,11 @@ const server = net.createServer((connection) => {
     }
     else if(intr=='wait' && serverConfig.role==='master'){
       wait_handler(connection,command);
-    } else if (intr === "ping") {
+    }
+    else if(intr=='config' && command[1]=='get' && command[2]=='dir')
+      {
+          connection.write(`*2\r\n${serverConfig.dir.length}\r\n${serverConfig.dir}\r\n${serverConfig.dbfilename.length}\r\n${serverConfig.dbfilename}\r\n`);
+      } else if (intr === "ping") {
       if (serverConfig.role == "master") {
         serverConfig.master_replica_connection = connection;
         replicas_connected.add(serverConfig.master_replica_connection);

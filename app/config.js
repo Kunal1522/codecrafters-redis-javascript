@@ -6,7 +6,9 @@ let serverConfig = {
   replica_offset: 0,
   master_host: undefined,
   master_port: undefined,
-  master_replica_connection: undefined
+  master_replica_connection: undefined,
+  dir: undefined,
+  dbfilename: undefined,
 };
 
 const args = process.argv;
@@ -20,11 +22,17 @@ if (portIndex !== -1 && args[portIndex + 1]) {
 const replicaIndex = args.indexOf("--replicaof");
 if (replicaIndex !== -1 && args[replicaIndex + 1]) {
   serverConfig.role = "slave";
-  if (args[replicaIndex + 1].includes('localhost')) {
-    const [hostname, port] = args[replicaIndex + 1].split(' ');
+  if (args[replicaIndex + 1].includes("localhost")) {
+    const [hostname, port] = args[replicaIndex + 1].split(" ");
     serverConfig.master_host = hostname;
     serverConfig.master_port = parseInt(port, 10);
-  } 
+  }
 }
+const dirindex = args.indexOf("--dir");
+if (dirindex !== -1 && args[dirindex + 1] && args[dirindex + 3]) {
+  serverConfig.dir = args[dirindex + 1];
+  serverConfig.dbfilename = args[dirindex + 3];
+}
+
 
 export { serverConfig };
