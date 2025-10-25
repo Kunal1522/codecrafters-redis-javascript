@@ -61,6 +61,24 @@ function createMasterConnection() {
           handshakeComplete = true;
           rdbBytesReceived = connection.bytesRead;
           serverConfig.replica_offset = 0;
+          
+          // Check if there are commands after RDB in the same buffer
+          const rdbEndMatch = dataStr.match(/\$(\d+)\r\n/);
+          if (rdbEndMatch) {
+            const rdbSize = parseInt(rdbEndMatch[1]);
+            const rdbStartIndex = dataStr.indexOf(rdbEndMatch[0]) + rdbEndMatch[0].length;
+            const rdbEndIndex = rdbStartIndex + rdbSize;
+            
+            if (rdbEndIndex < data.length) {
+              // There's data after RDB, forward it to bridge
+              const commandsAfterRdb = data.slice(rdbEndIndex);
+              console.log("Commands after RDB detected, forwarding", commandsAfterRdb.length, "bytes");
+              if (replicaBridgeConnection) {
+                replicaBridgeConnection.write(commandsAfterRdb);
+              }
+              serverConfig.replica_offset = commandsAfterRdb.length;
+            }
+          }
         }
       } else {
         console.log("Forwarding to bridge, offset:", connection.bytesRead - rdbBytesReceived);
