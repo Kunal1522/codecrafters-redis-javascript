@@ -81,8 +81,7 @@ const server = net.createServer((connection) => {
       multi_handler(originalData, connection, taskqueue);
     }
     else if(intr=='wait' && serverConfig.role==='master'){
-     
-      connection.write(`:${replicas_connected.length}\r\n`);
+      connection.write(`:${replicas_connected.size}\r\n`);
     } else if (intr === "ping") {
       if (serverConfig.role == "master") {
         serverConfig.master_replica_connection = connection;
