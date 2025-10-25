@@ -27,6 +27,7 @@ const pendingWaitRequest = {
   numRequired: 0,
   timeout: 0,
   ackedReplicas: new Set(),
-  timeoutId: null
+  timeoutId: null,
+  replicaExpectedOffsets: new Map()
 };
 export { redisKeyValuePair, redisList, blpopConnections, redisStream, streamSequenceMap,blocked_streams,REPLICATABLE_COMMANDS,replicas_connected,master_offset,pendingWaitRequest};

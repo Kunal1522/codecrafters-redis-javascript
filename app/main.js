@@ -65,36 +65,24 @@ const server = net.createServer((connection) => {
   function processCommand(command, connection, taskqueue, multi, originalData) {
     const intr = command[0]?.toLowerCase();
     const intru = command[0]?.toUpperCase();
-    console.log("command",command);
+    
     if (intr=='replconf' && command[1]?.toLowerCase() === 'getack') {
-        // REPLCONF GETACK * is always: *3\r\n$8\r\nREPLCONF\r\n$6\r\nGETACK\r\n$1\r\n*\r\n = 37 bytes
         const getAckBytes = 37;
         const offsetBeforeGetAck = serverConfig.replica_offset - getAckBytes;
         const response = `*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$${offsetBeforeGetAck.toString().length}\r\n${offsetBeforeGetAck}\r\n`;
-        console.log("Sending ACK with offset:", offsetBeforeGetAck);
         if (serverConfig.master_replica_connection) {
           serverConfig.master_replica_connection.write(response);
         }
     } else if (intr == "replconf" && command[1]?.toLowerCase() === 'ack' && serverConfig.role == "master") {
-      // Handle ACK response from replica
       const replicaOffset = parseInt(command[2], 10);
-      console.log("Received ACK from replica with offset:", replicaOffset, "Connection:", connection.remotePort);
       
-      // Check if there's a pending WAIT request
       if (pendingWaitRequest.active) {
-        console.log("Checking pending WAIT request. Expected offset:", pendingWaitRequest.expectedOffset, "Replica offset:", replicaOffset);
-        
-        // Check if this replica has caught up
         if (replicaOffset >= pendingWaitRequest.expectedOffset) {
-          // Add this replica to the acked set (using connection as identifier)
           if (!pendingWaitRequest.ackedReplicas.has(connection)) {
             pendingWaitRequest.ackedReplicas.add(connection);
-            console.log("Replica acknowledged. Total ACKs:", pendingWaitRequest.ackedReplicas.size);
             
-            // Check if we have enough ACKs now
             const ackedCount = pendingWaitRequest.ackedReplicas.size;
             if (ackedCount >= pendingWaitRequest.numRequired || ackedCount >= replicas_connected.size) {
-              console.log("Enough ACKs received. Sending response.");
               if (pendingWaitRequest.timeoutId) {
                 clearTimeout(pendingWaitRequest.timeoutId);
               }

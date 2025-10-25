@@ -20,6 +20,7 @@ function master_handler(command, connection) {
     connection.write(`$${bin_length}\r\n`);
     connection.write(binary_data);
     replicas_connected.add(connection);
+    master_offset.set(connection, 0);
     return;
   }
 }
@@ -28,7 +29,8 @@ function command_propogator(command, data) {
   if (REPLICATABLE_COMMANDS.includes(intr) && serverConfig.role === "master") {
     for (const replica_connection of replicas_connected) {
       replica_connection.write(data);
-      master_offset.set(replica_connection, replica_connection.bytesWritten);
+      const currentOffset = master_offset.get(replica_connection) || 0;
+      master_offset.set(replica_connection, currentOffset + data.length);
     }
   }
 }
