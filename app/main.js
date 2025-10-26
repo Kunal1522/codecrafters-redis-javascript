@@ -74,19 +74,26 @@ function addsubscriber(channel, client) {
   subchannel.get(channel).push(client);
 }
 function publisher(channel, msg) {
-  for (const [channel, clients] of subchannel) {
-    for (const client of clients) {
-      client.write(
-        `*3\r\n$7\r\nmessage\r\n$${channel.length}\r\n${channel}\r\n$${msg.length}\r\n${msg}\r\n`
-      );
-    }
+  const clients = subchannel.get(channel);
+  if (!clients || clients.length === 0) {
+    return 0;
   }
+  
+  for (const client of clients) {
+    client.write(
+      `*3\r\n$7\r\nmessage\r\n$${channel.length}\r\n${channel}\r\n$${msg.length}\r\n${msg}\r\n`
+    );
+  }
+  
+  return clients.length;
 }
 const server = net.createServer((connection) => {
   let taskqueue = new MyQueue();
   let multi = { active: false };
 
   let subscriber_mode = { active: false };
+  let subscribedChannels = new Set();
+  
   connection.on("data", (data) => {
     const commands = parseMultipleCommands(data);
     commands.forEach((cmd) =>
@@ -141,9 +148,16 @@ const server = net.createServer((connection) => {
       subscriber_mode.active = true;
       const channel = command[1];
       addsubscriber(channel, connection);
-      const channel_len = subchannel.size;
+      subscribedChannels.add(channel);
+      const channel_len = subscribedChannels.size;
       const res = `*3\r\n$9\r\nsubscribe\r\n$${channel.length}\r\n${channel}\r\n:${channel_len}\r\n`;
       connection.write(res);
+    }
+    if (intr == "publish") {
+      const channel = command[1];
+      const message = command[2];
+      const numSubscribers = publisher(channel, message);
+      connection.write(`:${numSubscribers}\r\n`);
     }
     console.log("subscribemode", subscriber_mode.active);
     if (subscriber_mode.active) {
