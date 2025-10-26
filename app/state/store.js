@@ -30,4 +30,5 @@ const pendingWaitRequest = {
   timeoutId: null,
   replicaExpectedOffsets: new Map()
 };
-export { redisKeyValuePair, redisList, blpopConnections, redisStream, streamSequenceMap,blocked_streams,REPLICATABLE_COMMANDS,replicas_connected,master_offset,pendingWaitRequest};
+const subchannel=new Set();
+export { redisKeyValuePair, redisList, blpopConnections, redisStream, streamSequenceMap,blocked_streams,REPLICATABLE_COMMANDS,replicas_connected,master_offset,pendingWaitRequest,subchannel};

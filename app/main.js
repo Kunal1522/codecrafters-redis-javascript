@@ -13,6 +13,7 @@ import {
   REPLICATABLE_COMMANDS,
   replicas_connected,
   pendingWaitRequest,
+  subchannel
 } from "./state/store.js";
 import {
   lrange_handler,
@@ -135,6 +136,12 @@ const server = net.createServer((connection) => {
           `*2\r\n$10\r\ndbfilename\r\n$${serverConfig.dbfilename.length}\r\n${serverConfig.dbfilename}\r\n`
         );
       }
+    }else if(intr=='subscribe'){
+    const channel=command[1];
+    subchannel.add(channel);
+    const channel_len=subchannel.size;
+    const res=`*3\r\n$9\r\nsubscribe\r\n$${channel.length}\r\n${channel}\r\n:${channel_len}\r\n`;
+    connection.write(res);
     } else if (intr === "ping") {
       if (serverConfig.role == "master") {
         serverConfig.master_replica_connection = connection;
