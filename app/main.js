@@ -151,12 +151,15 @@ const server = net.createServer((connection) => {
         );
       }
     } else if (intr === "ping") {
+      console.log("inside ping");
       if (serverConfig.role == "master") {
         serverConfig.master_replica_connection = connection;
         replicas_connected.add(serverConfig.master_replica_connection);
         if (subscriber_mode.active)
           connection.write("*2\r\n$4\r\npong\r\n$0\r\n\r\n");
-        else connection.write(`+PONG\r\n`);
+        else {
+          connection.write(`+PONG\r\n`);
+        }
       } else if (serverConfig.role != "slave") {
         if (subscriber_mode.active)
           connection.write("*2\r\n$4\r\npong\r\n$0\r\n\r\n");
