@@ -129,13 +129,17 @@ const server = net.createServer((connection) => {
       const res = `*3\r\n$9\r\nsubscribe\r\n$${channel.length}\r\n${channel}\r\n:${channel_len}\r\n`;
       connection.write(res);
     }
+    console.log("subscribemode", subscriber_mode.active);
     if (subscriber_mode.active) {
       if (!subsriber_commannds.includes(intru)) {
         connection.write(
           `-ERR Can't execute '${intru}' in subscribed mode\r\n`
         );
-        return;
       }
+      if (intru == "PING") {
+        connection.write("*2\r\n$4\r\npong\r\n$0\r\n\r\n");
+      }
+      return;
     } else if (multi.active && intr != "exec" && intr != "discard") {
       multi_handler(originalData, connection, taskqueue);
     } else if (intr == "wait" && serverConfig.role === "master") {
@@ -155,15 +159,9 @@ const server = net.createServer((connection) => {
       if (serverConfig.role == "master") {
         serverConfig.master_replica_connection = connection;
         replicas_connected.add(serverConfig.master_replica_connection);
-        if (subscriber_mode.active)
-          connection.write("*2\r\n$4\r\npong\r\n$0\r\n\r\n");
-        else {
-          connection.write(`+PONG\r\n`);
-        }
+        connection.write(`+PONG\r\n`);
       } else if (serverConfig.role != "slave") {
-        if (subscriber_mode.active)
-          connection.write("*2\r\n$4\r\npong\r\n$0\r\n\r\n");
-        else connection.write(`+PONG\r\n`);
+        connection.write(`+PONG\r\n`);
       }
     } else if (intr === "echo") {
       connection.write(`$${command[1].length}\r\n${command[1]}\r\n`);
