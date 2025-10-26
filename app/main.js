@@ -121,8 +121,8 @@ const server = net.createServer((connection) => {
     } else if (intr == "psync" && serverConfig.role == "master") {
       master_handler(command, serverConfig.master_replica_connection);
     }
-     if (intr == "subscribe"  ) {
-      subscriber_mode.active=true;
+    if (intr == "subscribe") {
+      subscriber_mode.active = true;
       const channel = command[1];
       subchannel.add(channel);
       const channel_len = subchannel.size;
@@ -154,9 +154,13 @@ const server = net.createServer((connection) => {
       if (serverConfig.role == "master") {
         serverConfig.master_replica_connection = connection;
         replicas_connected.add(serverConfig.master_replica_connection);
-        connection.write(`+PONG\r\n`);
+        if (subscriber_mode.active)
+          connection.write("*2\r\n$4\r\npong\r\n$0\r\n\r\n");
+        else connection.write(`+PONG\r\n`);
       } else if (serverConfig.role != "slave") {
-        connection.write(`+PONG\r\n`);
+        if (subscriber_mode.active)
+          connection.write("*2\r\n$4\r\npong\r\n$0\r\n\r\n");
+        else connection.write(`+PONG\r\n`);
       }
     } else if (intr === "echo") {
       connection.write(`$${command[1].length}\r\n${command[1]}\r\n`);
