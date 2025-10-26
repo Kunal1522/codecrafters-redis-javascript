@@ -14,6 +14,7 @@ import {
   replicas_connected,
   pendingWaitRequest,
   subsriber_commannds,
+  subchannel,
 } from "./state/store.js";
 import {
   lrange_handler,
@@ -66,10 +67,25 @@ if (
   );
   createMasterConnection();
 }
+function addsubscriber(channel, client) {
+  if (!subchannel.has(channel)) {
+    subchannel.set(channel, []);
+  }
+  subchannel.get(channel).push(client);
+}
+function publisher(channel, msg) {
+  for (const [channel, clients] of subchannel) {
+    for (const client of clients) {
+      client.write(
+        `*3\r\n$7\r\nmessage\r\n$${channel.length}\r\n${channel}\r\n$${msg.length}\r\n${msg}\r\n`
+      );
+    }
+  }
+}
 const server = net.createServer((connection) => {
   let taskqueue = new MyQueue();
   let multi = { active: false };
-  const subchannel = new Set();
+
   let subscriber_mode = { active: false };
   connection.on("data", (data) => {
     const commands = parseMultipleCommands(data);
@@ -124,7 +140,7 @@ const server = net.createServer((connection) => {
     if (intr == "subscribe") {
       subscriber_mode.active = true;
       const channel = command[1];
-      subchannel.add(channel);
+      addsubscriber(channel, connection);
       const channel_len = subchannel.size;
       const res = `*3\r\n$9\r\nsubscribe\r\n$${channel.length}\r\n${channel}\r\n:${channel_len}\r\n`;
       connection.write(res);
@@ -136,8 +152,16 @@ const server = net.createServer((connection) => {
           `-ERR Can't execute '${intru}' in subscribed mode\r\n`
         );
       }
+      //PUBLISH channel_name message_contents
       if (intru == "PING") {
         connection.write("*2\r\n$4\r\npong\r\n$0\r\n\r\n");
+      } else if (intru == "PUBLISH") {
+        const channel = command[1],
+          msg = command[2];
+        if (!subchannel[key]) {
+          subchannel[key] = [];
+        }
+        connection.write(`:${subchannel[key].length}\r\n`);
       }
       return;
     } else if (multi.active && intr != "exec" && intr != "discard") {

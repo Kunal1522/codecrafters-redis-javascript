@@ -38,7 +38,7 @@ const pendingWaitRequest = {
   timeoutId: null,
   replicaExpectedOffsets: new Map(),
 };
-
+const subchannel = new Map();
 export {
   redisKeyValuePair,
   redisList,
@@ -50,5 +50,6 @@ export {
   replicas_connected,
   master_offset,
   pendingWaitRequest,
-  subsriber_commannds
+  subsriber_commannds,
+  subchannel
 };
