@@ -13,7 +13,7 @@ import {
   REPLICATABLE_COMMANDS,
   replicas_connected,
   pendingWaitRequest,
-  subsriber_commannds
+  subsriber_commannds,
 } from "./state/store.js";
 import {
   lrange_handler,
@@ -73,7 +73,6 @@ const server = net.createServer((connection) => {
   let subscriber_mode = { active: false };
   connection.on("data", (data) => {
     const commands = parseMultipleCommands(data);
-
     commands.forEach((cmd) =>
       processCommand(cmd, connection, taskqueue, multi, data)
     );
@@ -122,12 +121,21 @@ const server = net.createServer((connection) => {
     } else if (intr == "psync" && serverConfig.role == "master") {
       master_handler(command, serverConfig.master_replica_connection);
     }
-     if(subscriber_mode.active){
-          if(!subsriber_commannds.includes(intru))
-          {
-            connection.write(`ERR Can't execute '${intru}' in subscribed mode`)
-            return ;
-          }
+     if (intr == "subscribe"  ) {
+      subscriber_mode.active=true;
+      const channel = command[1];
+      subchannel.add(channel);
+      const channel_len = subchannel.size;
+      const res = `*3\r\n$9\r\nsubscribe\r\n$${channel.length}\r\n${channel}\r\n:${channel_len}\r\n`;
+      connection.write(res);
+    }
+    if (subscriber_mode.active) {
+      if (!subsriber_commannds.includes(intru)) {
+        connection.write(
+          `-ERR Can't execute '${intru}' in subscribed mode\r\n`
+        );
+        return;
+      }
     } else if (multi.active && intr != "exec" && intr != "discard") {
       multi_handler(originalData, connection, taskqueue);
     } else if (intr == "wait" && serverConfig.role === "master") {
@@ -142,13 +150,6 @@ const server = net.createServer((connection) => {
           `*2\r\n$10\r\ndbfilename\r\n$${serverConfig.dbfilename.length}\r\n${serverConfig.dbfilename}\r\n`
         );
       }
-    } else if (intr == "subscribe") {
-      subscriber_mode.active=true;
-      const channel = command[1];
-      subchannel.add(channel);
-      const channel_len = subchannel.size;
-      const res = `*3\r\n$9\r\nsubscribe\r\n$${channel.length}\r\n${channel}\r\n:${channel_len}\r\n`;
-      connection.write(res);
     } else if (intr === "ping") {
       if (serverConfig.role == "master") {
         serverConfig.master_replica_connection = connection;
@@ -164,7 +165,6 @@ const server = net.createServer((connection) => {
       if (command.length > 3) {
         expiry_checker(command, redisKeyValuePair);
       }
-
       if (serverConfig.role == "master") {
         console.log("calling propagator");
         command_propogator(command, originalData);
@@ -209,7 +209,6 @@ const server = net.createServer((connection) => {
           }
           keys.push(key);
         }
-
         connection.write(`*${keys.length}\r\n`);
         keys.forEach((key) => {
           connection.write(`$${key.length}\r\n${key}\r\n`);
@@ -287,8 +286,6 @@ const server = net.createServer((connection) => {
       tmp_res += "master_replid" + ":" + serverConfig.master_replid + "\r\n";
       tmp_res += "master_repl_offset" + ":" + serverConfig.master_repl_offset;
       connection.write(`$${tmp_res.length}\r\n${tmp_res}\r\n`);
-    } else {
-      connection.write("-ERR unknown command\r\n");
     }
   }
 });

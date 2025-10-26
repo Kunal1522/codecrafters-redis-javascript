@@ -16,7 +16,6 @@ function generateStreamId(rawId) {
   sequence = prevSeq + 1;
   if (timestamp == 0 && sequence == 0) sequence++;
   streamSequenceMap.set(timestamp, sequence);
-
   const fullId = `${timestamp}-${sequence}`;
   return fullId;
 }
@@ -57,7 +56,6 @@ function xadd_handler(command, connection, blocked_streams, serverConfig) {
     }
   }
   const entry = { id: entryId };
-
   for (let i = 3; i < command.length; i += 2) {
     const fieldName = command[i];
     const fieldValue = command[i + 1];
@@ -160,10 +158,8 @@ function xread_handler(command, connection, blocked_streams) {
     return;
   }
   commandIndex++;
-  
   const remainingArgs = command.length - commandIndex;
   const stream_count = Math.floor(remainingArgs / 2);
-  
   const stream_keys = [];
   for (let i = 0; i < stream_count; i++) {
     stream_keys.push(command[commandIndex + i]);
@@ -175,7 +171,6 @@ function xread_handler(command, connection, blocked_streams) {
       redisStream[streamKey] = [];
     }
   }
-  
   const start_ids = [];
   for (let i = 0; i < stream_count; i++) {
     start_ids.push(command[commandIndex + stream_count + i]);

@@ -24,11 +24,9 @@ function readLengthEncoding(buffer, offset) {
   
   throw new Error(`Unknown length encoding: ${firstByte.toString(16)}`);
 }
-
 function readString(buffer, offset) {
   const { length, bytesRead, isSpecial } = readLengthEncoding(buffer, offset);
   let newOffset = offset + bytesRead;
-  
   if (isSpecial) {
     if (length === 0) {
       const value = buffer.readInt8(newOffset);
@@ -117,8 +115,6 @@ function parseRDB(filePath) {
       keys.set(key, { value, expireAt: null });
     }
   }
-  
   return { keys };
 }
-
 export { parseRDB };

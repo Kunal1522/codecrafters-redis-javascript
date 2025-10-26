@@ -10,7 +10,6 @@ let serverConfig = {
   dir: undefined,
   dbfilename: undefined,
 };
-
 const args = process.argv;
 console.log(args);
 
