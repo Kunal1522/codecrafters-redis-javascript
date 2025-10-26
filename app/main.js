@@ -12,8 +12,7 @@ import {
   blocked_streams,
   REPLICATABLE_COMMANDS,
   replicas_connected,
-  pendingWaitRequest,
-  subchannel
+  pendingWaitRequest
 } from "./state/store.js";
 import {
   lrange_handler,
@@ -70,7 +69,7 @@ if (
 const server = net.createServer((connection) => {
   let taskqueue = new MyQueue();
   let multi = { active: false };
-
+  const subchannel=new Set();
   connection.on("data", (data) => {
     const commands = parseMultipleCommands(data);
 
