@@ -143,6 +143,7 @@ const server = net.createServer((connection) => {
         );
       }
     } else if (intr == "subscribe") {
+      subscriber_mode.active=true;
       const channel = command[1];
       subchannel.add(channel);
       const channel_len = subchannel.size;
