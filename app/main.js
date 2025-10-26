@@ -12,7 +12,8 @@ import {
   blocked_streams,
   REPLICATABLE_COMMANDS,
   replicas_connected,
-  pendingWaitRequest
+  pendingWaitRequest,
+  subsriber_commannds
 } from "./state/store.js";
 import {
   lrange_handler,
@@ -55,7 +56,6 @@ if (serverConfig.dir && serverConfig.dbfilename) {
     console.log(`RDB file not found or error loading: ${error.message}`);
   }
 }
-
 console.log("Logs from your program will appear here!");
 if (
   serverConfig.master_host !== undefined &&
@@ -69,7 +69,8 @@ if (
 const server = net.createServer((connection) => {
   let taskqueue = new MyQueue();
   let multi = { active: false };
-  const subchannel=new Set();
+  const subchannel = new Set();
+  let subscriber_mode = { active: false };
   connection.on("data", (data) => {
     const commands = parseMultipleCommands(data);
 
@@ -77,7 +78,6 @@ const server = net.createServer((connection) => {
       processCommand(cmd, connection, taskqueue, multi, data)
     );
   });
-
   function processCommand(command, connection, taskqueue, multi, originalData) {
     const intr = command[0]?.toLowerCase();
     const intru = command[0]?.toUpperCase();
@@ -121,6 +121,13 @@ const server = net.createServer((connection) => {
       connection.write(`+OK\r\n`);
     } else if (intr == "psync" && serverConfig.role == "master") {
       master_handler(command, serverConfig.master_replica_connection);
+    }
+     if(subscriber_mode.active){
+          if(!subsriber_commannds.includes(intru))
+          {
+            connection.write(`ERR Can't execute '${intru}' in subscribed mode`)
+            return ;
+          }
     } else if (multi.active && intr != "exec" && intr != "discard") {
       multi_handler(originalData, connection, taskqueue);
     } else if (intr == "wait" && serverConfig.role === "master") {
@@ -135,12 +142,12 @@ const server = net.createServer((connection) => {
           `*2\r\n$10\r\ndbfilename\r\n$${serverConfig.dbfilename.length}\r\n${serverConfig.dbfilename}\r\n`
         );
       }
-    }else if(intr=='subscribe'){
-    const channel=command[1];
-    subchannel.add(channel);
-    const channel_len=subchannel.size;
-    const res=`*3\r\n$9\r\nsubscribe\r\n$${channel.length}\r\n${channel}\r\n:${channel_len}\r\n`;
-    connection.write(res);
+    } else if (intr == "subscribe") {
+      const channel = command[1];
+      subchannel.add(channel);
+      const channel_len = subchannel.size;
+      const res = `*3\r\n$9\r\nsubscribe\r\n$${channel.length}\r\n${channel}\r\n:${channel_len}\r\n`;
+      connection.write(res);
     } else if (intr === "ping") {
       if (serverConfig.role == "master") {
         serverConfig.master_replica_connection = connection;
@@ -173,16 +180,19 @@ const server = net.createServer((connection) => {
       if (value === "ille_pille_kille" || value === undefined) {
         connection.write(`$-1\r\n`);
       } else {
-        const actualValue = typeof value === 'object' && value.value !== undefined ? value.value : value;
-        
-        if (typeof value === 'object' && value.expireAt) {
+        const actualValue =
+          typeof value === "object" && value.value !== undefined
+            ? value.value
+            : value;
+
+        if (typeof value === "object" && value.expireAt) {
           if (Date.now() > value.expireAt) {
             redisKeyValuePair.delete(command[1]);
             connection.write(`$-1\r\n`);
             return;
           }
         }
-        
+
         connection.write(`$${actualValue.length}\r\n${actualValue}\r\n`);
       }
     } else if (intr === "keys") {
@@ -190,7 +200,7 @@ const server = net.createServer((connection) => {
       if (pattern === "*") {
         const keys = [];
         for (const [key, value] of redisKeyValuePair.entries()) {
-          if (typeof value === 'object' && value.expireAt) {
+          if (typeof value === "object" && value.expireAt) {
             if (Date.now() > value.expireAt) {
               redisKeyValuePair.delete(key);
               continue;
@@ -198,9 +208,9 @@ const server = net.createServer((connection) => {
           }
           keys.push(key);
         }
-        
+
         connection.write(`*${keys.length}\r\n`);
-        keys.forEach(key => {
+        keys.forEach((key) => {
           connection.write(`$${key.length}\r\n${key}\r\n`);
         });
       } else {
