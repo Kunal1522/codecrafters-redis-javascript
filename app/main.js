@@ -73,6 +73,19 @@ function addsubscriber(channel, client) {
   }
   subchannel.get(channel).push(client);
 }
+function removesubscriber(channel, client) {
+  if (!subchannel.has(channel)) {
+    return;
+  }
+  const clients = subchannel.get(channel);
+  const index = clients.indexOf(client);
+  if (index !== -1) {
+    clients.splice(index, 1);
+  }
+  if (clients.length === 0) {
+    subchannel.delete(channel);
+  }
+}
 function publisher(channel, msg) {
   const clients = subchannel.get(channel);
   if (!clients || clients.length === 0) {
@@ -153,6 +166,18 @@ const server = net.createServer((connection) => {
       const res = `*3\r\n$9\r\nsubscribe\r\n$${channel.length}\r\n${channel}\r\n:${channel_len}\r\n`;
       connection.write(res);
     }
+    if (intr == "unsubscribe") {
+      const channel = command[1];
+      removesubscriber(channel, connection);
+      subscribedChannels.delete(channel);
+      const channel_len = subscribedChannels.size;
+      const res = `*3\r\n$11\r\nunsubscribe\r\n$${channel.length}\r\n${channel}\r\n:${channel_len}\r\n`;
+      connection.write(res);
+      
+      if (subscribedChannels.size === 0) {
+        subscriber_mode.active = false;
+      }
+    }
     if (intr == "publish") {
       const channel = command[1];
       const message = command[2];
@@ -166,16 +191,8 @@ const server = net.createServer((connection) => {
           `-ERR Can't execute '${intru}' in subscribed mode\r\n`
         );
       }
-      //PUBLISH channel_name message_contents
       if (intru == "PING") {
         connection.write("*2\r\n$4\r\npong\r\n$0\r\n\r\n");
-      } else if (intru == "PUBLISH") {
-        const channel = command[1],
-          msg = command[2];
-        if (!subchannel[key]) {
-          subchannel[key] = [];
-        }
-        connection.write(`:${subchannel[key].length}\r\n`);
       }
       return;
     } else if (multi.active && intr != "exec" && intr != "discard") {
