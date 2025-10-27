@@ -93,4 +93,57 @@ function zrange_handler(command, connection) {
   }
 }
 
-export { zadd_handler, zrank_handler, zrange_handler };
+function zcard_handler(command, connection) {
+  const key = command[1];
+
+  if (!redisSortedSet.has(key)) {
+    connection.write(`:0\r\n`);
+    return;
+  }
+
+  const sortedSet = redisSortedSet.get(key);
+  const count = sortedSet.size;
+  connection.write(`:${count}\r\n`);
+}
+
+function zscore_handler(command, connection) {
+  const key = command[1];
+  const member = command[2];
+
+  if (!redisSortedSet.has(key)) {
+    connection.write(`$-1\r\n`);
+    return;
+  }
+
+  const sortedSet = redisSortedSet.get(key);
+  
+  if (!sortedSet.has(member)) {
+    connection.write(`$-1\r\n`);
+    return;
+  }
+
+  const score = sortedSet.get(member).toString();
+  connection.write(`$${score.length}\r\n${score}\r\n`);
+}
+
+function zrem_handler(command, connection) {
+  const key = command[1];
+  const member = command[2];
+
+  if (!redisSortedSet.has(key)) {
+    connection.write(`:0\r\n`);
+    return;
+  }
+
+  const sortedSet = redisSortedSet.get(key);
+  
+  if (!sortedSet.has(member)) {
+    connection.write(`:0\r\n`);
+    return;
+  }
+
+  sortedSet.delete(member);
+  connection.write(`:1\r\n`);
+}
+
+export { zadd_handler, zrank_handler, zrange_handler, zcard_handler, zscore_handler, zrem_handler };
