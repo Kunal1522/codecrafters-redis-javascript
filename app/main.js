@@ -28,7 +28,7 @@ import {
   x_range_handler,
   xread_handler,
 } from "./handlers/streams.js";
-import { MyQueue } from "./utils/queue.js";
+import { MyQueue } from "./data_structures/queue.js";
 import {
   multi_handler,
   exec_hanlder,
@@ -45,7 +45,14 @@ import {
   unsubscribe_handler,
   publish_handler,
 } from "./handlers/pubsub.js";
-import { zadd_handler, zrank_handler, zrange_handler, zcard_handler, zscore_handler, zrem_handler } from "./handlers/sortedset.js";
+import {
+  zadd_handler,
+  zrank_handler,
+  zrange_handler,
+  zcard_handler,
+  zscore_handler,
+  zrem_handler,
+} from "./handlers/sortedset.js";
 import { serverConfig } from "./config.js";
 import { parseRDB } from "./utils/rdb_parser.js";
 import path from "path";
@@ -77,7 +84,7 @@ const server = net.createServer((connection) => {
 
   let subscriber_mode = { active: false };
   let subscribedChannels = new Set();
-  
+
   connection.on("data", (data) => {
     const commands = parseMultipleCommands(data);
     commands.forEach((cmd) =>
@@ -129,10 +136,20 @@ const server = net.createServer((connection) => {
       master_handler(command, serverConfig.master_replica_connection);
     }
     if (intr == "subscribe") {
-      subscribe_handler(command, connection, subscribedChannels, subscriber_mode);
+      subscribe_handler(
+        command,
+        connection,
+        subscribedChannels,
+        subscriber_mode
+      );
     }
     if (intr == "unsubscribe") {
-      unsubscribe_handler(command, connection, subscribedChannels, subscriber_mode);
+      unsubscribe_handler(
+        command,
+        connection,
+        subscribedChannels,
+        subscriber_mode
+      );
     }
     if (intr == "publish") {
       publish_handler(command, connection);
@@ -311,7 +328,23 @@ const server = net.createServer((connection) => {
       tmp_res += "master_replid" + ":" + serverConfig.master_replid + "\r\n";
       tmp_res += "master_repl_offset" + ":" + serverConfig.master_repl_offset;
       connection.write(`$${tmp_res.length}\r\n${tmp_res}\r\n`);
+    } else if (intr == "geoadd") {
+      const key = command[1];
+      const lon = parseDouble(command[2], 10);
+      const lat = parseDouble(command[3], 10);
+      const place = command[4];
+      if (
+        lon > 180.0 ||
+        lon < -180.0 ||
+        lat > 85.05112878 ||
+        lat < -85.05112878
+      ) {
+        connection.write(`-ERR invalid latitude longitude pair\r\n`);
+      } else {
+        connection.write(`:1\r\n`);
+      }
     }
+    
   }
 });
 server.listen(serverConfig.port, "127.0.0.1", () => {

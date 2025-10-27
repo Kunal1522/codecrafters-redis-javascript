@@ -1,4 +1,8 @@
-import { streamSequenceMap, redisStream, REPLICATABLE_COMMANDS } from "../state/store.js";
+import {
+  streamSequenceMap,
+  redisStream,
+  REPLICATABLE_COMMANDS,
+} from "../state/store.js";
 import { writeToConnection } from "../utils/utils.js";
 
 function generateStreamId(rawId) {
@@ -26,7 +30,6 @@ function xadd_handler(command, connection, blocked_streams, serverConfig) {
   if (!redisStream[streamKey]) {
     redisStream[streamKey] = [];
   }
-
   const [millisecondsTime, sequenceNumber] = entryId.split("-");
   if (millisecondsTime == 0 && sequenceNumber == 0) {
     connection.write(
@@ -64,15 +67,21 @@ function xadd_handler(command, connection, blocked_streams, serverConfig) {
     }
   }
   redisStream[streamKey].push(entry);
-  writeToConnection(connection, `$${entryId.length}\r\n${entryId}\r\n`, "xadd", serverConfig, REPLICATABLE_COMMANDS);
-    
-    // console.log("blocked_streams[streamKey].length",blocked_streams[streamKey].length);
+  writeToConnection(
+    connection,
+    `$${entryId.length}\r\n${entryId}\r\n`,
+    "xadd",
+    serverConfig,
+    REPLICATABLE_COMMANDS
+  );
+
+  // console.log("blocked_streams[streamKey].length",blocked_streams[streamKey].length);
   if (blocked_streams[streamKey] && blocked_streams[streamKey].length > 0) {
     console.log("inside the block stream");
     const client = blocked_streams[streamKey].shift();
-    const newEntry = redisStream[streamKey][redisStream[streamKey].length - 1];    
+    const newEntry = redisStream[streamKey][redisStream[streamKey].length - 1];
     // Build response with just the newly added entry
-    console.log("neentry",newEntry);
+    console.log("neentry", newEntry);
     const fields = Object.entries(newEntry)
       .filter(([k]) => k !== "id")
       .flat();
@@ -148,7 +157,7 @@ function x_range_handler(startkey, endkey, command, connection) {
 function xread_handler(command, connection, blocked_streams) {
   let timeout = null;
   let commandIndex = 1;
-  
+
   if (command[commandIndex]?.toLowerCase() === "block") {
     timeout = Number(command[commandIndex + 1]);
     commandIndex += 2;
@@ -203,21 +212,20 @@ function xread_handler(command, connection, blocked_streams) {
       });
       results.push([streamKey, entriesArray]);
     }
-  } 
-  if (timeout !== null ) {
+  }
+  if (timeout !== null) {
     const client = {
       connection: connection,
-      startId: start_ids[0]
+      startId: start_ids[0],
     };
-    
-  
+
     const streamKey = stream_keys[0];
     if (!blocked_streams[streamKey]) {
       blocked_streams[streamKey] = [];
     }
     blocked_streams[streamKey].push(client);
-    console.log("blockedstream",blocked_streams);
-   
+    console.log("blockedstream", blocked_streams);
+
     if (timeout !== 0) {
       setTimeout(() => {
         // Check if this client is still in the blocked list for this stream
