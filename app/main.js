@@ -46,7 +46,6 @@ import {
   unsubscribe_handler,
   publish_handler,
 } from "./handlers/pubsub.js";
-import { SortedSet } from "./data_structures/sortedset.js";
 import {
   zadd_handler,
   zrank_handler,
@@ -55,6 +54,12 @@ import {
   zscore_handler,
   zrem_handler,
 } from "./handlers/sortedset.js";
+import {
+  geoadd_handler,
+  geopos_handler,
+  geodist_handler,
+  geosearch_handler,
+} from "./handlers/geo.js";
 import { serverConfig } from "./config.js";
 import { parseRDB } from "./utils/rdb_parser.js";
 import path from "path";
@@ -331,26 +336,13 @@ const server = net.createServer((connection) => {
       tmp_res += "master_repl_offset" + ":" + serverConfig.master_repl_offset;
       connection.write(`$${tmp_res.length}\r\n${tmp_res}\r\n`);
     } else if (intr == "geoadd") {
-      const key = command[1];
-      const lon = parseFloat(command[2]);
-      const lat = parseFloat(command[3]);
-      const place = command[4];
-
-      if (
-        lon > 180.0 ||
-        lon < -180.0 ||
-        lat > 85.05112878 ||
-        lat < -85.05112878
-      ) {
-        connection.write(`-ERR invalid latitude longitude pair\r\n`);
-      } else {
-        if (!redisSortedSet.has(key)) {
-          redisSortedSet.set(key, new SortedSet());
-        }
-        const sortedSet = redisSortedSet.get(key);
-        const result = sortedSet.add(0, place);
-        connection.write(`:${result}\r\n`);
-      }
+      geoadd_handler(command, connection);
+    } else if (intr == "geopos") {
+      geopos_handler(command, connection);
+    } else if (intr == "geodist") {
+      geodist_handler(command, connection);
+    } else if (intr == "geosearch") {
+      geosearch_handler(command, connection);
     }
 
   }
