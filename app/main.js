@@ -330,8 +330,8 @@ const server = net.createServer((connection) => {
       connection.write(`$${tmp_res.length}\r\n${tmp_res}\r\n`);
     } else if (intr == "geoadd") {
       const key = command[1];
-      const lon = parseDouble(command[2], 10);
-      const lat = parseDouble(command[3], 10);
+      const lon = parseFloat(command[2]);
+      const lat = parseFloat(command[3]);
       const place = command[4];
       if (
         lon > 180.0 ||
@@ -344,7 +344,7 @@ const server = net.createServer((connection) => {
         connection.write(`:1\r\n`);
       }
     }
-    
+
   }
 });
 server.listen(serverConfig.port, "127.0.0.1", () => {

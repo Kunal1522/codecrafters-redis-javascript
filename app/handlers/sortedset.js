@@ -1,5 +1,5 @@
 import { redisSortedSet } from "../state/store.js";
-import { SkipList } from "../data_structures/skiplist.js";
+import { SortedSet } from "../data_structures/sortedset.js";
 
 function zadd_handler(command, connection) {
   const key = command[1];
@@ -7,21 +7,12 @@ function zadd_handler(command, connection) {
   const member = command[3];
 
   if (!redisSortedSet.has(key)) {
-    redisSortedSet.set(key, {
-      skiplist: new SkipList(),
-      map: new Map()
-    });
+    redisSortedSet.set(key, new SortedSet());
   }
-  const { skiplist, map } = redisSortedSet.get(key);
-  const existed = map.has(member);
 
-  if (existed) {
-    const oldScore = map.get(member);
-    skiplist.delete(oldScore, member);
-  }
-  skiplist.insert(score, member);
-  map.set(member, score);
-  connection.write(existed ? `:0\r\n` : `:1\r\n`);
+  const sortedSet = redisSortedSet.get(key);
+  const result = sortedSet.add(score, member);
+  connection.write(`:${result}\r\n`);
 }
 
 function zrank_handler(command, connection) {
@@ -33,15 +24,14 @@ function zrank_handler(command, connection) {
     return;
   }
 
-  const { skiplist, map } = redisSortedSet.get(key);
+  const sortedSet = redisSortedSet.get(key);
+  const rank = sortedSet.getRank(member);
 
-  if (!map.has(member)) {
+  if (rank === -1) {
     connection.write(`$-1\r\n`);
-    return;
+  } else {
+    connection.write(`:${rank}\r\n`);
   }
-  const score = map.get(member);
-  const rank = skiplist.getRank(score, member);
-  connection.write(`:${rank}\r\n`);
 }
 
 function zrange_handler(command, connection) {
@@ -54,8 +44,8 @@ function zrange_handler(command, connection) {
     return;
   }
 
-  const { skiplist } = redisSortedSet.get(key);
-  const result = skiplist.getRange(start, stop);
+  const sortedSet = redisSortedSet.get(key);
+  const result = sortedSet.getRange(start, stop);
 
   connection.write(`*${result.length}\r\n`);
   for (const item of result) {
@@ -71,8 +61,9 @@ function zcard_handler(command, connection) {
     return;
   }
 
-  const { skiplist } = redisSortedSet.get(key);
-  connection.write(`:${skiplist.length}\r\n`);
+  const sortedSet = redisSortedSet.get(key);
+  const count = sortedSet.getCardinality();
+  connection.write(`:${count}\r\n`);
 }
 
 function zscore_handler(command, connection) {
@@ -84,15 +75,15 @@ function zscore_handler(command, connection) {
     return;
   }
 
-  const { map } = redisSortedSet.get(key);
+  const sortedSet = redisSortedSet.get(key);
+  const score = sortedSet.getScore(member);
 
-  if (!map.has(member)) {
+  if (score === null) {
     connection.write(`$-1\r\n`);
-    return;
+  } else {
+    const scoreStr = score.toString();
+    connection.write(`$${scoreStr.length}\r\n${scoreStr}\r\n`);
   }
-
-  const score = map.get(member).toString();
-  connection.write(`$${score.length}\r\n${score}\r\n`);
 }
 
 function zrem_handler(command, connection) {
@@ -104,17 +95,9 @@ function zrem_handler(command, connection) {
     return;
   }
 
-  const { skiplist, map } = redisSortedSet.get(key);
-
-  if (!map.has(member)) {
-    connection.write(`:0\r\n`);
-    return;
-  }
-
-  const score = map.get(member);
-  skiplist.delete(score, member);
-  map.delete(member);
-  connection.write(`:1\r\n`);
+  const sortedSet = redisSortedSet.get(key);
+  const result = sortedSet.remove(member);
+  connection.write(`:${result}\r\n`);
 }
 
 export {
