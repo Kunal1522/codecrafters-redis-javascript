@@ -22,7 +22,6 @@ function compactInt64ToInt32(v) {
     v = (v | (v >> 16n)) & 0x00000000FFFFFFFFn;
     return Number(v);
 }
-
 function convertGridNumbersToCoordinates(gridLatitudeNumber, gridLongitudeNumber) {
     // Calculate the grid boundaries
     const gridLatitudeMin = MIN_LATITUDE + LATITUDE_RANGE * (gridLatitudeNumber / Math.pow(2, 26));
@@ -38,9 +37,12 @@ function convertGridNumbersToCoordinates(gridLatitudeNumber, gridLongitudeNumber
 }
 
 function decode(geoCode) {
+    // Convert to BigInt if it's not already
+    const code = typeof geoCode === 'bigint' ? geoCode : BigInt(geoCode);
+    
     // Align bits of both latitude and longitude to take even-numbered position
-    const y = geoCode >> 1n;
-    const x = geoCode;
+    const y = code >> 1n;
+    const x = code;
     
     // Compact bits back to 32-bit ints
     const gridLatitudeNumber = compactInt64ToInt32(x);
