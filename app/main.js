@@ -14,7 +14,6 @@ import {
   replicas_connected,
   pendingWaitRequest,
   subsriber_commannds,
-  subchannel,
 } from "./state/store.js";
 import {
   lrange_handler,
@@ -41,10 +40,15 @@ import {
   command_propogator,
   wait_handler,
 } from "./handlers/master_handler.js";
+import {
+  subscribe_handler,
+  unsubscribe_handler,
+  publish_handler,
+} from "./handlers/pubsub.js";
+import { zadd_handler } from "./handlers/sortedset.js";
 import { serverConfig } from "./config.js";
 import { parseRDB } from "./utils/rdb_parser.js";
 import path from "path";
-
 if (serverConfig.dir && serverConfig.dbfilename) {
   const rdbPath = path.join(serverConfig.dir, serverConfig.dbfilename);
   try {
@@ -66,39 +70,6 @@ if (
     `Replica mode: Connecting to master at ${serverConfig.master_host}:${serverConfig.master_port}`
   );
   createMasterConnection();
-}
-function addsubscriber(channel, client) {
-  if (!subchannel.has(channel)) {
-    subchannel.set(channel, []);
-  }
-  subchannel.get(channel).push(client);
-}
-function removesubscriber(channel, client) {
-  if (!subchannel.has(channel)) {
-    return;
-  }
-  const clients = subchannel.get(channel);
-  const index = clients.indexOf(client);
-  if (index !== -1) {
-    clients.splice(index, 1);
-  }
-  if (clients.length === 0) {
-    subchannel.delete(channel);
-  }
-}
-function publisher(channel, msg) {
-  const clients = subchannel.get(channel);
-  if (!clients || clients.length === 0) {
-    return 0;
-  }
-  
-  for (const client of clients) {
-    client.write(
-      `*3\r\n$7\r\nmessage\r\n$${channel.length}\r\n${channel}\r\n$${msg.length}\r\n${msg}\r\n`
-    );
-  }
-  
-  return clients.length;
 }
 const server = net.createServer((connection) => {
   let taskqueue = new MyQueue();
@@ -158,31 +129,13 @@ const server = net.createServer((connection) => {
       master_handler(command, serverConfig.master_replica_connection);
     }
     if (intr == "subscribe") {
-      subscriber_mode.active = true;
-      const channel = command[1];
-      addsubscriber(channel, connection);
-      subscribedChannels.add(channel);
-      const channel_len = subscribedChannels.size;
-      const res = `*3\r\n$9\r\nsubscribe\r\n$${channel.length}\r\n${channel}\r\n:${channel_len}\r\n`;
-      connection.write(res);
+      subscribe_handler(command, connection, subscribedChannels, subscriber_mode);
     }
     if (intr == "unsubscribe") {
-      const channel = command[1];
-      removesubscriber(channel, connection);
-      subscribedChannels.delete(channel);
-      const channel_len = subscribedChannels.size;
-      const res = `*3\r\n$11\r\nunsubscribe\r\n$${channel.length}\r\n${channel}\r\n:${channel_len}\r\n`;
-      connection.write(res);
-      
-      if (subscribedChannels.size === 0) {
-        subscriber_mode.active = false;
-      }
+      unsubscribe_handler(command, connection, subscribedChannels, subscriber_mode);
     }
     if (intr == "publish") {
-      const channel = command[1];
-      const message = command[2];
-      const numSubscribers = publisher(channel, message);
-      connection.write(`:${numSubscribers}\r\n`);
+      publish_handler(command, connection);
     }
     console.log("subscribemode", subscriber_mode.active);
     if (subscriber_mode.active) {
@@ -334,6 +287,8 @@ const server = net.createServer((connection) => {
       xread_handler(command, connection, blocked_streams);
     } else if (intr == "incr") {
       incr_handler(command, redisKeyValuePair, connection, serverConfig);
+    } else if (intr == "zadd") {
+      zadd_handler(command, connection);
     } else if (intr == "multi") {
       multi.active = true;
       connection.write(`+OK\r\n`);

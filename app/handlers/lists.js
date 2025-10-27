@@ -27,7 +27,6 @@ function lrange_handler(command, redis_list, connection) {
     connection.write("*0\r\n");
     return;
   }
-
   connection.write(`*${end - start + 1}\r\n`);
   for (let i = start; i <= end; i++) {
     const val = list[i];

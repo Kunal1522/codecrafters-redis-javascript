@@ -39,6 +39,7 @@ const pendingWaitRequest = {
   replicaExpectedOffsets: new Map(),
 };
 const subchannel = new Map();
+const redisSortedSet = new Map();
 export {
   redisKeyValuePair,
   redisList,
@@ -51,5 +52,6 @@ export {
   master_offset,
   pendingWaitRequest,
   subsriber_commannds,
-  subchannel
+  subchannel,
+  redisSortedSet
 };
