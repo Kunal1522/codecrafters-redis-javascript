@@ -5,7 +5,6 @@ class SortedSet {
     this.skiplist = new SkipList();
     this.map = new Map();
   }
-
   add(score, member) {
     const existed = this.map.has(member);
 
@@ -13,18 +12,15 @@ class SortedSet {
       const oldScore = this.map.get(member);
       this.skiplist.delete(oldScore, member);
     }
-
     this.skiplist.insert(score, member);
     this.map.set(member, score);
 
     return existed ? 0 : 1;
   }
-
   getRank(member) {
     if (!this.map.has(member)) {
       return -1;
     }
-
     const score = this.map.get(member);
     return this.skiplist.getRank(score, member);
   }
@@ -48,12 +44,10 @@ class SortedSet {
     if (!this.map.has(member)) {
       return 0;
     }
-
     const score = this.map.get(member);
     this.skiplist.delete(score, member);
     this.map.delete(member);
     return 1;
   }
 }
-
 export { SortedSet };

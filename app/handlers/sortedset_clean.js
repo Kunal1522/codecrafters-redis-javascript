@@ -1,1 +1,0 @@
-wsl bash -c "cd /home/kunal/codecrafters-redis-javascript && cp app/data_structures/sortedset.js app/handlers/sortedset_handlers.js && rm app/handlers/sortedset.js && mv app/handlers/sortedset_handlers.js app/handlers/sortedset.js"

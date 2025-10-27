@@ -23,14 +23,12 @@ class SkipList {
     }
     return level;
   }
-
   compare(score1, member1, score2, member2) {
     if (score1 !== score2) {
       return score1 - score2;
     }
     return member1.localeCompare(member2);
   }
-
   insert(score, member) {
     const update = new Array(this.maxLevel);
     const rank = new Array(this.maxLevel).fill(0);
@@ -114,7 +112,6 @@ class SkipList {
   getRank(score, member) {
     let rank = 0;
     let current = this.head;
-
     for (let i = this.level - 1; i >= 0; i--) {
       while (
         current.forward[i] &&
@@ -123,7 +120,6 @@ class SkipList {
         rank += current.span[i];
         current = current.forward[i];
       }
-
       if (current.member === member && current.score === score) {
         return rank - 1;
       }

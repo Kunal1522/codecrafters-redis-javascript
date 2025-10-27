@@ -53,5 +53,6 @@ export {
   pendingWaitRequest,
   subsriber_commannds,
   subchannel,
-  redisSortedSet
+  redisSortedSet,
+  geospace
 };

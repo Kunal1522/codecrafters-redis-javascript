@@ -14,6 +14,7 @@ import {
   replicas_connected,
   pendingWaitRequest,
   subsriber_commannds,
+  redisSortedSet,
 } from "./state/store.js";
 import {
   lrange_handler,
@@ -45,6 +46,7 @@ import {
   unsubscribe_handler,
   publish_handler,
 } from "./handlers/pubsub.js";
+import { SortedSet } from "./data_structures/sortedset.js";
 import {
   zadd_handler,
   zrank_handler,
@@ -333,6 +335,7 @@ const server = net.createServer((connection) => {
       const lon = parseFloat(command[2]);
       const lat = parseFloat(command[3]);
       const place = command[4];
+
       if (
         lon > 180.0 ||
         lon < -180.0 ||
@@ -341,7 +344,12 @@ const server = net.createServer((connection) => {
       ) {
         connection.write(`-ERR invalid latitude longitude pair\r\n`);
       } else {
-        connection.write(`:1\r\n`);
+        if (!redisSortedSet.has(key)) {
+          redisSortedSet.set(key, new SortedSet());
+        }
+        const sortedSet = redisSortedSet.get(key);
+        const result = sortedSet.add(0, place);
+        connection.write(`:${result}\r\n`);
       }
     }
 

@@ -9,7 +9,6 @@ function zadd_handler(command, connection) {
   if (!redisSortedSet.has(key)) {
     redisSortedSet.set(key, new SortedSet());
   }
-
   const sortedSet = redisSortedSet.get(key);
   const result = sortedSet.add(score, member);
   connection.write(`:${result}\r\n`);
