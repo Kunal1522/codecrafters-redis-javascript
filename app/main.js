@@ -45,7 +45,7 @@ import {
   unsubscribe_handler,
   publish_handler,
 } from "./handlers/pubsub.js";
-import { zadd_handler } from "./handlers/sortedset.js";
+import { zadd_handler, zrank_handler, zrange_handler } from "./handlers/sortedset.js";
 import { serverConfig } from "./config.js";
 import { parseRDB } from "./utils/rdb_parser.js";
 import path from "path";
@@ -289,6 +289,10 @@ const server = net.createServer((connection) => {
       incr_handler(command, redisKeyValuePair, connection, serverConfig);
     } else if (intr == "zadd") {
       zadd_handler(command, connection);
+    } else if (intr == "zrank") {
+      zrank_handler(command, connection);
+    } else if (intr == "zrange") {
+      zrange_handler(command, connection);
     } else if (intr == "multi") {
       multi.active = true;
       connection.write(`+OK\r\n`);
