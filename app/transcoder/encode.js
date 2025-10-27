@@ -55,3 +55,5 @@ for (const testCase of testCases) {
     const success = actualScore === testCase.expectedScore;
     console.log(`${testCase.name}: ${actualScore} (${success ? "✅" : "❌"})`);
 }
+
+export { encode };

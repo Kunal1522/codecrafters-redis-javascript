@@ -1,66 +1,9 @@
 import { redisSortedSet } from "../state/store.js";
 import { SortedSet } from "../data_structures/sortedset.js";
+import { encode } from "../transcoder/encode.js";
+import { decode } from "../transcoder/decode.js";
 
-const MIN_LATITUDE = -85.05112878;
-const MAX_LATITUDE = 85.05112878;
-const MIN_LONGITUDE = -180.0;
-const MAX_LONGITUDE = 180.0;
-const LATITUDE_RANGE = MAX_LATITUDE - MIN_LATITUDE;
-const LONGITUDE_RANGE = MAX_LONGITUDE - MIN_LONGITUDE;
 const EARTH_RADIUS_IN_METERS = 6372797.560856;
-
-function spreadInt32ToInt64(v) {
-  let result = BigInt(v) & 0xFFFFFFFFn;
-  result = (result | (result << 16n)) & 0x0000FFFF0000FFFFn;
-  result = (result | (result << 8n)) & 0x00FF00FF00FF00FFn;
-  result = (result | (result << 4n)) & 0x0F0F0F0F0F0F0F0Fn;
-  result = (result | (result << 2n)) & 0x3333333333333333n;
-  result = (result | (result << 1n)) & 0x5555555555555555n;
-  return result;
-}
-
-function interleave(x, y) {
-  const xSpread = spreadInt32ToInt64(x);
-  const ySpread = spreadInt32ToInt64(y);
-  const yShifted = ySpread << 1n;
-  return xSpread | yShifted;
-}
-
-function encode(latitude, longitude) {
-  const normalizedLatitude = Math.pow(2, 26) * (latitude - MIN_LATITUDE) / LATITUDE_RANGE;
-  const normalizedLongitude = Math.pow(2, 26) * (longitude - MIN_LONGITUDE) / LONGITUDE_RANGE;
-  const latInt = Math.floor(normalizedLatitude);
-  const lonInt = Math.floor(normalizedLongitude);
-  return Number(interleave(latInt, lonInt));
-}
-
-function compactInt64ToInt32(v) {
-  v = v & 0x5555555555555555n;
-  v = (v | (v >> 1n)) & 0x3333333333333333n;
-  v = (v | (v >> 2n)) & 0x0F0F0F0F0F0F0F0Fn;
-  v = (v | (v >> 4n)) & 0x00FF00FF00FF00FFn;
-  v = (v | (v >> 8n)) & 0x0000FFFF0000FFFFn;
-  v = (v | (v >> 16n)) & 0x00000000FFFFFFFFn;
-  return Number(v);
-}
-
-function decode(geoCode) {
-  const code = BigInt(geoCode);
-  const y = code >> 1n;
-  const x = code;
-  const gridLatitudeNumber = compactInt64ToInt32(x);
-  const gridLongitudeNumber = compactInt64ToInt32(y);
-  
-  const gridLatitudeMin = MIN_LATITUDE + LATITUDE_RANGE * (gridLatitudeNumber / Math.pow(2, 26));
-  const gridLatitudeMax = MIN_LATITUDE + LATITUDE_RANGE * ((gridLatitudeNumber + 1) / Math.pow(2, 26));
-  const gridLongitudeMin = MIN_LONGITUDE + LONGITUDE_RANGE * (gridLongitudeNumber / Math.pow(2, 26));
-  const gridLongitudeMax = MIN_LONGITUDE + LONGITUDE_RANGE * ((gridLongitudeNumber + 1) / Math.pow(2, 26));
-  
-  const latitude = (gridLatitudeMin + gridLatitudeMax) / 2;
-  const longitude = (gridLongitudeMin + gridLongitudeMax) / 2;
-  
-  return { latitude, longitude };
-}
 
 function degreesToRadians(degrees) {
   return (degrees * Math.PI) / 180;
@@ -102,7 +45,7 @@ function geoadd_handler(command, connection) {
     redisSortedSet.set(key, new SortedSet());
   }
 
-  const score = encode(lat, lon);
+  const score = Number(encode(lat, lon));
   const sortedSet = redisSortedSet.get(key);
   const result = sortedSet.add(score, place);
   connection.write(`:${result}\r\n`);

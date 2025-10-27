@@ -79,3 +79,5 @@ for (const testCase of testCases) {
         console.log(`  Diff: lat=${latDiff}, lon=${lonDiff}`);
     }
 }
+
+export { decode };
