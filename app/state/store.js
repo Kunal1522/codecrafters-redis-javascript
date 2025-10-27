@@ -54,5 +54,4 @@ export {
   subsriber_commannds,
   subchannel,
   redisSortedSet,
-  geospace
 };
