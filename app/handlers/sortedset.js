@@ -1,26 +1,38 @@
-import { SkipList } from "skip-list";
 import { redisSortedSet } from "../state/store.js";
+
+function getSortedItems(sortedSet) {
+  const items = Array.from(sortedSet.entries()).map(([member, score]) => ({
+    score,
+    member
+  }));
+  
+  items.sort((a, b) => {
+    if (a.score !== b.score) {
+      return a.score - b.score;
+    }
+    return a.member.localeCompare(b.member);
+  });
+  
+  return items;
+}
 
 function zadd_handler(command, connection) {
   const key = command[1];
   const score = parseFloat(command[2]);
   const member = command[3];
+  
   if (!redisSortedSet.has(key)) {
-    redisSortedSet.set(key, {
-      skiplist: new SkipList(),
-      map: new Map(),
-    });
+    redisSortedSet.set(key, new Map());
   }
-  const { skiplist, map } = redisSortedSet.get(key);
-  if (map.has(member)) {
-    const oldScore = map.get(member);
-    skiplist.remove(oldScore);
-    skiplist.insert(score, member);
-    map.set(member, score);
+  
+  const sortedSet = redisSortedSet.get(key);
+  const existed = sortedSet.has(member);
+  
+  sortedSet.set(member, score);
+  
+  if (existed) {
     connection.write(`:0\r\n`);
   } else {
-    skiplist.insert(score, member);
-    map.set(member, score);
     connection.write(`:1\r\n`);
   }
 }
@@ -34,29 +46,14 @@ function zrank_handler(command, connection) {
     return;
   }
 
-  const { skiplist, map } = redisSortedSet.get(key);
+  const sortedSet = redisSortedSet.get(key);
   
-  if (!map.has(member)) {
+  if (!sortedSet.has(member)) {
     connection.write(`$-1\r\n`);
     return;
   }
 
-  const score = map.get(member);
-  const allItems = [];
-  
-  let current = skiplist.head.forward[0];
-  while (current) {
-    allItems.push({ score: current.key, member: current.value });
-    current = current.forward[0];
-  }
-
-  allItems.sort((a, b) => {
-    if (a.score !== b.score) {
-      return a.score - b.score;
-    }
-    return a.member.localeCompare(b.member);
-  });
-
+  const allItems = getSortedItems(sortedSet);
   const rank = allItems.findIndex(item => item.member === member);
   connection.write(`:${rank}\r\n`);
 }
@@ -71,22 +68,8 @@ function zrange_handler(command, connection) {
     return;
   }
 
-  const { skiplist, map } = redisSortedSet.get(key);
-  const allItems = [];
-  
-  let current = skiplist.head.forward[0];
-  while (current) {
-    allItems.push({ score: current.key, member: current.value });
-    current = current.forward[0];
-  }
-
-  allItems.sort((a, b) => {
-    if (a.score !== b.score) {
-      return a.score - b.score;
-    }
-    return a.member.localeCompare(b.member);
-  });
-
+  const sortedSet = redisSortedSet.get(key);
+  const allItems = getSortedItems(sortedSet);
   const length = allItems.length;
 
   if (start < 0) {
